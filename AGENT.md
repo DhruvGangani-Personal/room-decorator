@@ -13,7 +13,10 @@ This file documents conventions, contracts, and guardrails for AI agents modifyi
 
 ## Critical Contracts
 
-1. **Image Ordinal Mapping (`app.py`)**:
+1. **In-Place Room Preservation (`app.py`)**:
+   - `main_image` (`"first image"`) is immutable: `generate_interior_prompt()` instructs Gemini to perform **in-place tile surface replacement only** on the specified floor/walls while keeping 100% of existing furniture, decor, ceiling, windows, lighting, and layout untouched (never re-furnishing or restyling the room).
+
+2. **Image Ordinal Mapping (`app.py`)**:
    - `images_for_gemini` always starts with `main_pil_image` at index `0` (`"first image"`).
    - Optional images (`floor_tile_image`, `wall_tile_image_1`, `wall_tile_image_2`, `wall_tile_image_3`) are appended sequentially via `save_optional_image(field_name)` so their `"second image"` … `"fifth image"` labels always match their exact position in `contents = [prompt] + images`.
    - Never hardcode image ordinal strings; always derive them from `len(images_for_gemini)` when appending.

@@ -1,7 +1,7 @@
 # BRAIN.md — System Design & Engineering Notes
 
 ## Concept & Evolution
-Atelier Tile transforms a raw or existing room photograph (`main_image`) into a photorealistic interior render with user-selected floor and wall tiles while locking camera perspective, room geometry, and architectural openings.
+Atelier Tile treats the uploaded room photograph (`main_image`) as an **immutable scene** and performs **in-place tile surface replacement only** on the specified floor and/or walls — keeping all existing furniture, decor, ceiling, windows, lighting, camera perspective, and architectural openings unchanged.
 
 ### Key Architectural Decisions
 

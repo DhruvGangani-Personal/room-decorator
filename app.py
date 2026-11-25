@@ -191,20 +191,16 @@ def generate_interior_prompt(
     grid_ref_block = ("\n" + "\n".join(grid_ref_lines)) if grid_ref_lines else ""
 
     prompt = f"""
-STRICT LAYOUT & CAMERA LOCK (MANDATORY):
-- Use {main_image} as the exact spatial reference.
-- Preserve camera angle, perspective, framing, and field of view exactly as shown in {main_image}.
-- Do NOT change room geometry, proportions, walls, floor boundaries, ceiling height, or openings.
-- Do NOT move, resize, crop, rotate, or reinterpret the layout in any way.
-- Do NOT change tile color or pattern from the provided tile images.
-- Architectural structure must remain 100% identical to {main_image}.
-- Applied tiles must NOT be covered by any carpet, rug, or floor mat. Keep all tile surfaces fully visible and unobstructed.
-- Do NOT add carpeting, rugs, or floor mats of any kind.
-- Remove all construction materials, tools, iron rods, wooden rods, scaffolding, debris, or any objects not part of the final interior design.
+STRICT IN-PLACE ROOM PRESERVATION (MANDATORY — DO NOT CHANGE THE ROOM):
+- Treat {main_image} as an immutable photograph. Perform an IN-PLACE TILE SURFACE REPLACEMENT ONLY on the specified floor and/or wall surfaces.
+- Preserve camera angle, perspective, framing, lighting, and field of view 100% identically to {main_image}.
+- Keep EVERY existing object in {main_image} completely untouched and unchanged: all furniture, chairs, tables, plants, windows, doors, curtains, ceiling, light fixtures, decor, background scenery, and shadows must remain in their exact original position, shape, and color.
+- Do NOT add, remove, move, replace, crop, rotate, or restyle any furniture, decor, ceiling, or architectural structure.
+- Do NOT add carpeting, rugs, or floor mats over the applied tiles.
+- Do NOT change tile color or pattern from the provided tile reference images.
 
 SCENE:
-Recreate a premium, photorealistic interior scene of a {scene} using {main_image} as the spatial anchor.
-The layout, structure, and proportions of {main_image} must remain completely unchanged.
+Keep the existing {scene} in {main_image} 100% unchanged — ONLY replace the specified floor and/or wall surfaces with the provided tiles.
 
 FLOOR:
 {floor_instruction}
@@ -212,16 +208,9 @@ FLOOR:
 WALL:
 {wall_instruction}
 
-CEILING:
-The ceiling must be plain, clean, and free of any tiles or surface patterns.
-It should be finished in a neutral tone that complements the overall color palette of the {scene}.
-If {main_image} appears to be a construction or bare unfinished space, recreate a complete, finished ceiling appropriate for a {scene} — such as a smooth painted surface or a simple false ceiling with recessed lighting.
-The ceiling must never distract from the tiled wall and floor surfaces.
-
-FURNITURE & DECOR:
-Furnish all remaining space with furniture, lighting fixtures, and accessories appropriate for a modern {scene}.
-All furniture and decor must be contextually suitable, well-proportioned, and placed naturally within the space.
-Do not overcrowd the scene — maintain breathing room and a premium, curated feel.
+CEILING & EXISTING FURNITURE (DO NOT MODIFY):
+- Keep the ceiling from {main_image} 100% identical and untouched.
+- Keep all existing furniture, lighting fixtures, windows, doors, plants, and decor from {main_image} 100% identical and untouched — do NOT invent, add, or remove any objects.
 
 GROUT (CRITICAL — MUST BE VISIBLE):
 Grout lines are a mandatory visible element — they must NOT be invisible, faint, blended into the tile, or omitted.
