@@ -9,7 +9,7 @@ from PIL import Image
 import uuid
 from datetime import datetime
 from dotenv import load_dotenv
-from tile_size_model import analyze_tile_size, load_tile_size_pkl
+from tile_size_model import analyze_tile_size, load_grid_reference_image, load_tile_size_pkl
 
 load_dotenv()
 
@@ -56,17 +56,32 @@ def generate_interior_prompt(
     wall_grout_width: str = "2 mm",
     floor_grout_color: str = None,
     wall_grout_color: str = None,
+    floor_orientation: str = "horizontal",
+    wall_orientation: str = "horizontal",
     sync_grout: bool = False,
     floor_count_check: str = None,
     wall_count_check: str = None,
+    floor_grid_ref: str = None,
+    wall_grid_ref: str = None,
 ):
     """Generate interior design prompt based on provided parameters"""
+
+    floor_orient_rule = (
+        "Lay floor tiles HORIZONTALLY (long edge running left-to-right parallel to the back wall, short edge front-to-back)."
+        if floor_orientation == "horizontal"
+        else "Lay floor tiles VERTICALLY (long edge running front-to-back along the room depth, short edge left-to-right)."
+    )
+    wall_orient_rule = (
+        "Lay wall tiles HORIZONTALLY (landscape orientation: long edge horizontal left-to-right, short edge vertical top-to-bottom)."
+        if wall_orientation == "horizontal"
+        else "Lay wall tiles VERTICALLY (portrait orientation: long edge vertical top-to-bottom, short edge horizontal left-to-right)."
+    )
 
     # --- Floor ---
     if floor_tile_image and floor_finish:
         floor_instruction = (
             f"Replace the floor surface with the tile pattern from {floor_tile_image}. "
-            f"Tile size: {floor_size_lable}. Finish: {floor_finish}. "
+            f"Tile size: {floor_size_lable}. Finish: {floor_finish}. {floor_orient_rule} "
             f"Render the floor tiles in true architectural perspective with crisp, evenly spaced grid joints matching {floor_size_lable} — "
             f"do NOT render oversized slabs or square tiles when {floor_size_lable} is rectangular. "
             f"Preserve the tile's original color and pattern exactly. "
@@ -92,7 +107,7 @@ def generate_interior_prompt(
         )
         wall_instruction = (
             " ".join(wall_assignments)
-            + f" All tiled walls use tile size {wall_size_lable} and {wall_finish} finish. "
+            + f" All tiled walls use tile size {wall_size_lable} and {wall_finish} finish. {wall_orient_rule} "
             + "Preserve each tile's original color and pattern exactly. "
             + untiled_note
         ).strip()
@@ -154,6 +169,27 @@ def generate_interior_prompt(
         )
         grout_sync_rule = grid_alignment_rule
 
+    grid_ref_lines = []
+    if floor_grid_ref:
+        floor_rotate_note = (
+            " NOTE: Rotate the tile grid 90 degrees to VERTICAL (portrait) orientation if the blueprint shows horizontal tiles."
+            if floor_orientation == "vertical"
+            else " Keep the tile grid in HORIZONTAL (landscape) orientation."
+        )
+        grid_ref_lines.append(
+            f"- Floor Grid & Scale Blueprint: Use {floor_grid_ref} STRICTLY as the tile size, aspect ratio, grid density, and grout-spacing reference for the floor ({floor_size_lable}).{floor_rotate_note} Do NOT copy its room, furniture, or tile color — ONLY copy its tile grid scale and proportions."
+        )
+    if wall_grid_ref:
+        wall_rotate_note = (
+            " NOTE: Rotate the tile grid 90 degrees to VERTICAL (portrait) orientation if the blueprint shows horizontal tiles."
+            if wall_orientation == "vertical"
+            else " Keep the tile grid in HORIZONTAL (landscape) orientation."
+        )
+        grid_ref_lines.append(
+            f"- Wall Grid & Scale Blueprint: Use {wall_grid_ref} STRICTLY as the tile size, aspect ratio, grid density, and grout-spacing reference for the walls ({wall_size_lable}).{wall_rotate_note} Do NOT copy its room, furniture, or tile color — ONLY copy its tile grid scale and proportions."
+        )
+    grid_ref_block = ("\n" + "\n".join(grid_ref_lines)) if grid_ref_lines else ""
+
     prompt = f"""
 STRICT LAYOUT & CAMERA LOCK (MANDATORY):
 - Use {main_image} as the exact spatial reference.
@@ -199,7 +235,7 @@ Grout lines are a mandatory visible element — they must NOT be invisible, fain
 
 TILE SIZE ENFORCEMENT (CRITICAL — NON-NEGOTIABLE):
 Floor tile size is {floor_size_lable}. {floor_count_check}
-Wall tile size is {wall_size_lable}. {wall_count_check}
+Wall tile size is {wall_size_lable}. {wall_count_check}{grid_ref_block}
 Before finalising the image, verify: count the tiles visible on any 1-meter span of floor or wall.
 The count MUST match the stated tile density above. If it does not match, the tile size is rendered incorrectly — fix it.
 Do NOT make tiles larger or smaller than declared. Do NOT guess the scale.
@@ -304,7 +340,8 @@ def get_tile_models():
 def api_analyze_tile_size():
     """Analyze a mm tile size string against tile_size_model.pkl"""
     size_str = request.args.get('size', '600x1200 mm')
-    return jsonify(analyze_tile_size(size_str)), 200
+    orientation = request.args.get('orientation', 'horizontal')
+    return jsonify(analyze_tile_size(size_str, orientation_mode=orientation)), 200
 
 @app.route('/generate-prompt', methods=['POST'])
 def generate_prompt():
@@ -356,7 +393,15 @@ def generate_prompt():
         # Load main image as PIL Image
         main_pil_image = Image.open(main_filepath)
         images_for_gemini = [main_pil_image]
-        ordinal_names = ["first image", "second image", "third image", "fourth image", "fifth image"]
+        ordinal_names = [
+            "first image",
+            "second image",
+            "third image",
+            "fourth image",
+            "fifth image",
+            "sixth image",
+            "seventh image",
+        ]
 
         def save_optional_image(field_name):
             if field_name not in request.files:
@@ -386,6 +431,12 @@ def generate_prompt():
         wall_finish = request.form.get('wall_finish')
         floor_grout_color = request.form.get('floor_grout_color') or None
         wall_grout_color = request.form.get('wall_grout_color') or None
+        floor_orientation = request.form.get('floor_orientation', 'horizontal')
+        wall_orientation = request.form.get('wall_orientation', 'horizontal')
+        if floor_orientation not in ('horizontal', 'vertical'):
+            floor_orientation = 'horizontal'
+        if wall_orientation not in ('horizontal', 'vertical'):
+            wall_orientation = 'horizontal'
         sync_grout = request.form.get('sync_grout', 'false').lower() in ('true', '1', 'yes', 'on')
         scene = request.form.get('scene', 'living room')
 
@@ -403,9 +454,56 @@ def generate_prompt():
                 'message': 'Allowed values: matt, glossy, high glossy'
             }), 400
         
-        # Analyze tile sizes against Models/tile_size_model.pkl
-        floor_size_info = analyze_tile_size(floor_size_lable)
-        wall_size_info = analyze_tile_size(wall_size_lable)
+        # Analyze tile sizes against Models/tile_size_model.pkl (orientation-aware)
+        floor_size_info = analyze_tile_size(floor_size_lable, orientation_mode=floor_orientation)
+        wall_size_info = analyze_tile_size(wall_size_lable, orientation_mode=wall_orientation)
+
+        # Print incoming request payload for debugging
+        payload_debug = {
+            "files": {
+                k: f.filename
+                for k, f in request.files.items()
+                if f and f.filename
+            },
+            "form": {
+                "scene": scene,
+                "floor_size_lable": floor_size_lable,
+                "floor_orientation": floor_orientation,
+                "floor_finish": floor_finish,
+                "floor_grout_color": floor_grout_color,
+                "wall_size_lable": wall_size_lable,
+                "wall_orientation": wall_orientation,
+                "wall_finish": wall_finish,
+                "wall_grout_color": wall_grout_color,
+                "sync_grout": sync_grout,
+            },
+        }
+        print("=== /generate-prompt PAYLOAD ===", payload_debug, flush=True)
+
+        # Attach visual room-grid reference images from "Tile apply according to sized/"
+        grid_ref_cache = {}
+
+        def attach_grid_ref(size_str):
+            loaded = load_grid_reference_image(size_str)
+            if not loaded:
+                return None
+            ref_img, ref_name = loaded
+            if ref_name in grid_ref_cache:
+                return grid_ref_cache[ref_name]
+            idx = len(images_for_gemini)
+            if idx >= len(ordinal_names):
+                return None
+            images_for_gemini.append(ref_img)
+            ordinal = ordinal_names[idx]
+            grid_ref_cache[ref_name] = ordinal
+            return ordinal
+
+        floor_grid_ref = attach_grid_ref(floor_size_lable) if second_img else None
+        wall_grid_ref = (
+            attach_grid_ref(wall_size_lable)
+            if (third_img or forth_img or fifth_img)
+            else None
+        )
 
         # Generate prompt
         prompt = generate_interior_prompt(
@@ -420,9 +518,13 @@ def generate_prompt():
             wall_finish=wall_finish,
             floor_grout_color=floor_grout_color,
             wall_grout_color=wall_grout_color,
+            floor_orientation=floor_orientation,
+            wall_orientation=wall_orientation,
             sync_grout=sync_grout,
             floor_count_check=floor_size_info['count_check'],
             wall_count_check=wall_size_info['count_check'],
+            floor_grid_ref=floor_grid_ref,
+            wall_grid_ref=wall_grid_ref,
             scene=scene
         )
 

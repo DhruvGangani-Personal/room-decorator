@@ -134,6 +134,15 @@
               </div>
 
               <div class="field-group">
+                <label>Floor Tile Orientation</label>
+                <div class="segmented-control segmented-control-2" data-name="floor_orientation">
+                  <button type="button" class="seg-btn active" data-value="horizontal">Horizontal</button>
+                  <button type="button" class="seg-btn" data-value="vertical">Vertical</button>
+                </div>
+                <input type="hidden" id="floor_orientation" name="floor_orientation" value="horizontal" />
+              </div>
+
+              <div class="field-group">
                 <label>Floor Surface Finish</label>
                 <div class="segmented-control" data-name="floor_finish">
                   <button type="button" class="seg-btn active" data-value="">None</button>
@@ -236,6 +245,15 @@
                 </div>
                 <input type="text" id="wall_size_lable" name="wall_size_lable" class="text-input" value="600x1200 mm" placeholder="e.g. 600x1200 mm" />
                 <div class="size-analysis-badge" id="wall-size-analysis"></div>
+              </div>
+
+              <div class="field-group">
+                <label>Wall Tile Orientation</label>
+                <div class="segmented-control segmented-control-2" data-name="wall_orientation">
+                  <button type="button" class="seg-btn active" data-value="horizontal">Horizontal</button>
+                  <button type="button" class="seg-btn" data-value="vertical">Vertical</button>
+                </div>
+                <input type="hidden" id="wall_orientation" name="wall_orientation" value="horizontal" />
               </div>
 
               <div class="field-group">

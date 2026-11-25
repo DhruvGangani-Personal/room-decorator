@@ -18,12 +18,13 @@ Atelier Tile transforms a raw or existing room photograph (`main_image`) into a 
    - Based on luminance (`> 0.68` light, `< 0.35` dark, or mid-tone) and warmth (`r >= b`), `buildRecommendedGroutSwatches()` generates 4 tailored grout options (tonal match, soft contrast, deep contrast, and warm/cool neutral).
    - Users can pick **Auto**, one of the 4 **tile-matched swatches**, or any **Custom** hex color via `<input type="color">`.
    - **Wall-to-Floor Grout Grid Alignment** is always enforced whenever both floor and wall tiles are provided, connecting vertical wall grout joints directly into the floor grout lines at the wall-to-floor junction.
+   - **Tile Orientation (`floor_orientation` / `wall_orientation`)**: Defaults to `"horizontal"` (landscape) with a UI segmented toggle to switch between **Horizontal** and **Vertical** layout independently for floor and walls. `analyze_tile_size()` swaps effective width/height per orientation so 1-meter tile counts and grid blueprint rotation instructions match the chosen orientation.
    - The **Sync with Floor** (`sync_grout`) toggle additionally mirrors the selected grout color across both wall and floor.
 
 4. **Tile Size & Aspect-Ratio `.pkl` Model (`tile_size_model.py`)**
    - `Models/` holds flat reference tile images and `Models/Tile apply according to sized/` holds 9 full-room grid templates (`1200X1200_tile_used.jpg`, `1200X1800_tile_used.jpg`, `200X1200_tile_used.jpg`, `300X450_tile_used.jpg`, `600X1200_tile_used.jpg`, `600X600_tile_used.jpg`, `800X1600_tile_used.jpg`, `800X2400_tile_used.jpg`, `800X800_tile_used.jpg`) demonstrating exact wall-to-floor connected grout grids at each tile scale.
    - `build_tile_size_pkl()` indexes all 9 sizes into `Models/tile_size_model.pkl` with mm dimensions, aspect ratio, orientation (`square`, `rectangular`, `plank`), pixel resolution, 1-meter span tile density, and `grid_reference_image` path.
-   - When a user enters any `mm` size in the UI or API, `analyze_tile_size()` matches it against `tile_size_model.pkl` (exact or closest aspect-ratio/dimension match) and injects the computed aspect ratio and 1-meter tile count into `floor_count_check` / `wall_count_check` for strict scale enforcement in the room render.
+   - When a user enters any `mm` size in the UI or API, `analyze_tile_size()` matches it against `tile_size_model.pkl` (exact or closest aspect-ratio/dimension match) and `load_grid_reference_image()` attaches a resized (768px) room-grid blueprint from `Tile apply according to sized/` to Gemini's `contents` so Gemini has both **visual** grid-density conditioning and **textual** 1-meter/4-meter tile-count enforcement.
 
 5. **Vertex AI Express Mode (`GOOGLE_CLOUD_API_KEY`)**
    - `genai.Client(vertexai=True, api_key=os.environ.get("GOOGLE_CLOUD_API_KEY"))` uses `MODEL_NAME=gemini-3.1-flash-image` from `.env`.

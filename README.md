@@ -64,5 +64,6 @@ AiPhotoGenerated/
   - `scene` (string, optional, default: `"living room"`): Interior space type.
   - `floor_size_lable` / `wall_size_lable` (string, optional, default: `"600x1200 mm"`): Tile dimensions.
   - `floor_finish` / `wall_finish` (string, optional): `"matt"`, `"glossy"`, or `"high glossy"`.
+  - `floor_orientation` / `wall_orientation` (string, optional, default `"horizontal"`): `"horizontal"` or `"vertical"`.
   - `floor_grout_color` / `wall_grout_color` (string, optional): Explicit grout color name/hex, or omitted for auto-contrast.
   - `sync_grout` (string/boolean, optional, default `"false"`): When `"true"`, unifies floor & wall grout color and aligns floor grout lines directly with wall grout joints.

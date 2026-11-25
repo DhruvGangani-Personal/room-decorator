@@ -29,12 +29,13 @@ This file documents conventions, contracts, and guardrails for AI agents modifyi
    - In the UI (`static/app.js`), uploading a floor or wall tile auto-selects `"matt"` if the corresponding finish is currently unset, because `generate_interior_prompt` requires a finish to apply tile instructions.
    - `floor_grout_color` and `wall_grout_color` are optional strings (e.g., `"Warm Almond (#DDD0C0)"` or `"#3B3F45"`). When omitted/empty, the prompt falls back to automatic contrasting grout.
    - **Wall-to-Floor Grout Grid Alignment**: Always enforced whenever both floor and wall tiles are present so vertical wall grout joints connect seamlessly with floor grout lines at the wall-floor junction.
+   - `floor_orientation` & `wall_orientation`: `"horizontal"` (default) or `"vertical"` — controls whether rectangular tiles are laid horizontally (landscape) or vertically (portrait).
    - `sync_grout` (boolean form field `"true"`/`"false"`): when enabled, additionally locks floor and wall grout to the exact same color.
 
 4. **Tile Size `.pkl` Model (`tile_size_model.py` & `Models/tile_size_model.pkl`)**:
    - Reference tile size images live in `Models/` and room-grid reference renders live in `Models/Tile apply according to sized/` (covering 9 sizes: `200x1200`, `300x450`, `600x600`, `600x1200`, `800x800`, `800x1600`, `800x2400`, `1200x1200`, `1200x1800` mm).
-   - `tile_size_model.py` builds `Models/tile_size_model.pkl` from both directories and exposes `analyze_tile_size(size_input)` + `load_tile_size_pkl()`.
-   - `POST /generate-prompt` passes `floor_count_check` and `wall_count_check` from `analyze_tile_size()` into `generate_interior_prompt()`.
+   - `tile_size_model.py` builds `Models/tile_size_model.pkl` from both directories and exposes `analyze_tile_size(size_input, orientation_mode="horizontal")`, `load_tile_size_pkl()`, and `load_grid_reference_image(size_input)` (which loads a 768px-resized room-grid blueprint from `Tile apply according to sized/`).
+   - `POST /generate-prompt` attaches the matched `grid_reference_image` (deduplicated if floor & wall share the same size) to `images_for_gemini` and passes `floor_count_check`, `wall_count_check`, `floor_grid_ref`, and `wall_grid_ref` into `generate_interior_prompt()`.
    - If new tile images are added to `Models/`, re-run `venv/bin/python tile_size_model.py` to rebuild `Models/tile_size_model.pkl`.
 
 5. **Vertex AI Model**:

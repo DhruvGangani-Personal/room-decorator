@@ -613,6 +613,9 @@
     const wallFinish = document.getElementById('wall_finish').value;
     if (wallFinish) formData.append('wall_finish', wallFinish);
 
+    formData.append('floor_orientation', document.getElementById('floor_orientation').value || 'horizontal');
+    formData.append('wall_orientation', document.getElementById('wall_orientation').value || 'horizontal');
+
     const floorGroutColor = document.getElementById('floor_grout_color').value;
     if (floorGroutColor) formData.append('floor_grout_color', floorGroutColor);
 
@@ -680,6 +683,8 @@
     });
     setSegmentedValue('floor_finish', '');
     setSegmentedValue('wall_finish', '');
+    setSegmentedValue('floor_orientation', 'horizontal');
+    setSegmentedValue('wall_orientation', 'horizontal');
     setGroutSelection('floor', '', 'Auto (contrasting grout)', 'auto', null, true);
     setGroutSelection('wall', '', 'Auto (contrasting grout)', 'auto', null, true);
     const syncGrout = document.getElementById('sync_grout');

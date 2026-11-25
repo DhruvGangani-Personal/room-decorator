@@ -177,12 +177,17 @@ def load_tile_size_pkl(pkl_path: Path = DEFAULT_PKL_PATH) -> Dict:
         return pickle.load(f)
 
 
-def analyze_tile_size(size_input: str, pkl_path: Path = DEFAULT_PKL_PATH) -> Dict:
+def analyze_tile_size(
+    size_input: str,
+    orientation_mode: str = "horizontal",
+    pkl_path: Path = DEFAULT_PKL_PATH,
+) -> Dict:
     """
     Analyze a user-provided mm tile size against `tile_size_model.pkl`.
 
-    Returns parsed dimensions, aspect ratio, 1-meter span tile counts,
-    closest reference model in `Models/`, and a prompt-ready `count_check` string.
+    Returns parsed dimensions, orientation-adjusted aspect ratio, 1-meter span
+    tile counts, closest reference model in `Models/`, and a prompt-ready
+    `count_check` string.
     """
     model_data = load_tile_size_pkl(pkl_path)
     tiles = model_data.get("tiles", [])
@@ -199,10 +204,19 @@ def analyze_tile_size(size_input: str, pkl_path: Path = DEFAULT_PKL_PATH) -> Dic
         }
 
     width_mm, height_mm, explicit_ratio = parsed
+    short_mm = min(width_mm, height_mm)
+    long_mm = max(width_mm, height_mm)
+    if width_mm == height_mm:
+        eff_w, eff_h = width_mm, height_mm
+    elif orientation_mode == "vertical":
+        eff_w, eff_h = short_mm, long_mm
+    else:
+        eff_w, eff_h = long_mm, short_mm
+
     ratio_label = explicit_ratio or _simplify_ratio(width_mm, height_mm)
     target_ratio = width_mm / height_mm
-    tiles_w = round(1000.0 / width_mm, 2)
-    tiles_h = round(1000.0 / height_mm, 2)
+    tiles_w = round(1000.0 / eff_w, 2)
+    tiles_h = round(1000.0 / eff_h, 2)
     orientation = _classify_orientation(width_mm, height_mm)
 
     exact_match = None
@@ -239,17 +253,17 @@ def analyze_tile_size(size_input: str, pkl_path: Path = DEFAULT_PKL_PATH) -> Dic
         "STRICTLY SQUARE (1:1)."
         if width_mm == height_mm
         else (
-            f"STRICTLY RECTANGULAR {ratio_label} — NEVER square and NEVER oversized mega-slabs: "
-            f"each tile's long side ({max(width_mm, height_mm)} mm) is "
-            f"{round(max(width_mm, height_mm) / min(width_mm, height_mm), 2)}x its short side ({min(width_mm, height_mm)} mm)."
+            f"STRICTLY RECTANGULAR {ratio_label} laid {orientation_mode.upper()} "
+            f"({eff_w} mm left-to-right width x {eff_h} mm height/depth — "
+            f"NEVER square and NEVER oversized mega-slabs)."
         )
     )
-    tiles_4m_w = round(4000.0 / width_mm, 1)
-    tiles_4m_h = round(4000.0 / height_mm, 1)
+    tiles_4m_w = round(4000.0 / eff_w, 1)
+    tiles_4m_h = round(4000.0 / eff_h, 1)
 
     count_check = (
         f"{shape_rule} "
-        f"On any 1-meter (1000 mm) span, fit ~{tiles_w} tiles across width and ~{tiles_h} tiles across height "
+        f"On any 1-meter (1000 mm) span, fit ~{tiles_w} tiles across width and ~{tiles_h} tiles across height/depth "
         f"(~{tiles_4m_w} x ~{tiles_4m_h} tiles across a 4-meter room span in true perspective). "
         f"[{match_note}]"
     )
@@ -269,6 +283,33 @@ def analyze_tile_size(size_input: str, pkl_path: Path = DEFAULT_PKL_PATH) -> Dic
         "matched_model": closest_match,
         "count_check": count_check,
     }
+
+
+def load_grid_reference_image(
+    size_input: str,
+    max_dim: int = 768,
+    pkl_path: Path = DEFAULT_PKL_PATH,
+) -> Optional[Tuple[Image.Image, str]]:
+    """
+    Load and resize the room-grid reference image from `Tile apply according to sized/`
+    for the given `size_input` using `tile_size_model.pkl`.
+
+    Returns `(PIL.Image, filename)` or `None` if unavailable.
+    """
+    info = analyze_tile_size(size_input, pkl_path=pkl_path)
+    matched = info.get("matched_model")
+    if not matched:
+        return None
+    ref_path_str = matched.get("grid_reference_image") or matched.get("filepath")
+    if not ref_path_str:
+        return None
+    ref_path = Path(ref_path_str)
+    if not ref_path.exists():
+        return None
+
+    img = Image.open(ref_path).convert("RGB")
+    img.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
+    return img, ref_path.name
 
 
 if __name__ == "__main__":

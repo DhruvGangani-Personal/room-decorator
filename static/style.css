@@ -625,6 +625,10 @@ body {
   gap: 3px;
 }
 
+.segmented-control-2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+
 .seg-btn {
   border: none;
   background: transparent;
