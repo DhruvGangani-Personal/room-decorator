@@ -1,0 +1,41 @@
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Environment variables & secrets
+.env
+.env.*
+!.env.example
+
+# Python bytecode & caches
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Flask runtime & generated assets
+uploads/*
+!uploads/.gitkeep
+generated_images/*
+!generated_images/.gitkeep
+
+# Logs & temporary files
+*.log
+*.tmp
+*.bak
+*.swp
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
