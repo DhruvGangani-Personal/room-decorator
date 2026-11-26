@@ -1,5 +1,7 @@
 # Atelier Tile — AI Interior Tile Visualizer
 
+![Atelier Tile — AI Interior Visualizer UI](assets/ui_preview.jpg)
+
 A Flask + Google Vertex AI (Gemini Image Generation) web application for photorealistic interior tile visualization. Upload a room reference photo along with floor and wall tile swatches (Left, Center, and Right walls), customize tile sizes, surface finishes, and tile-matched grout colors, and compare the generated render against the original room.
 
 ## Features
