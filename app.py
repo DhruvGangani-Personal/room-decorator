@@ -403,37 +403,29 @@ def match_my_room():
         room_img = Image.open(filepath)
         advisor_prompt = (
             "You are an expert architectural interior & tile designer. Analyze this room photo "
-            "(furniture, woodwork, curtains, wall colors, natural/indoor lighting, and style) and "
-            "return ONLY valid JSON with this exact schema:\n"
+            "(room type, furniture, woodwork, wall colors, and lighting) and return ONLY valid JSON "
+            "with this exact schema — focus ONLY on room type detection, best grout colors, and best laying patterns:\n"
             "{\n"
-            '  "detected_scene": "living room | bathroom | kitchen | bedroom | hallway | commercial lobby | office | outdoor",\n'
+            '  "detected_scene": "living room | office | bathroom | kitchen | bedroom | hallway | commercial lobby | outdoor",\n'
             '  "style": "short 2-3 word style name",\n'
             '  "lighting_tone": "short 2-3 word lighting description",\n'
             '  "dominant_colors": ["#HEX1", "#HEX2", "#HEX3"],\n'
             '  "recommendations": [\n'
             "    {\n"
-            '      "title": "short 2-4 word palette name",\n'
-            '      "reason": "1 concise sentence explaining why it suits this room",\n'
-            '      "floor_tile_name": "e.g. Warm Travertine",\n'
-            '      "floor_tile_hex": "#HEX",\n'
-            '      "floor_size": "one of: 200x1200 mm, 300x450 mm, 600x600 mm, 600x1200 mm, 800x800 mm, 800x1600 mm, 800x2400 mm, 1200x1200 mm, 1200x1800 mm",\n'
-            '      "floor_finish": "matt | glossy | high glossy",\n'
+            '      "title": "short 2-4 word recommendation name",\n'
+            '      "reason": "1 concise sentence explaining why this grout & laying pattern suits the room",\n'
             '      "floor_pattern": "grid | brick | herringbone | diagonal | bookmatch",\n'
             '      "floor_grout_color": "Name (#HEX)",\n'
-            '      "wall_tile_name": "e.g. Matte Oak Plank",\n'
-            '      "wall_tile_hex": "#HEX",\n'
-            '      "wall_size": "one of: 200x1200 mm, 300x450 mm, 600x600 mm, 600x1200 mm, 800x800 mm, 800x1600 mm, 800x2400 mm, 1200x1200 mm, 1200x1800 mm",\n'
-            '      "wall_finish": "matt | glossy | high glossy",\n'
             '      "wall_pattern": "grid | brick | herringbone | diagonal | bookmatch",\n'
             '      "wall_grout_color": "Name (#HEX)"\n'
             "    }\n"
             "  ]\n"
             "}\n"
-            "Provide exactly 3 diverse, tasteful recommendations."
+            "Provide exactly 3 diverse recommendations."
         )
 
         response = client.models.generate_content(
-            model=os.getenv("ADVISOR_MODEL", "gemini-2.5-flash"),
+            model=os.environ.get("ADVISOR_MODEL", "gemini-2.5-flash"),
             contents=[advisor_prompt, room_img],
             config=types.GenerateContentConfig(response_mime_type="application/json"),
         )

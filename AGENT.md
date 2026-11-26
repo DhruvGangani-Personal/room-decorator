@@ -49,7 +49,7 @@ This file documents conventions, contracts, and guardrails for AI agents modifyi
 
 6. **Vertex AI Models**:
    - Image generation model is loaded from `MODEL_NAME` in `.env` (defaulting to `gemini-3.1-flash-image`). Do not hardcode deprecated preview model IDs.
-   - Room advisor (`POST /api/match-my-room`) uses `ADVISOR_MODEL` (defaulting to `gemini-2.5-flash`) with `response_mime_type="application/json"` to analyze `main_image` and return 3 structured tile & grout palettes.
+   - Room advisor (`POST /api/match-my-room`) uses `ADVISOR_MODEL` (defaulting to `gemini-2.5-flash`) with `response_mime_type="application/json"` to detect room type (`detected_scene`) and recommend the best grout colors (`floor_grout_color`, `wall_grout_color`) and laying patterns (`floor_pattern`, `wall_pattern`).
 
 ## Verification Checklist
 

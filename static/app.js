@@ -824,22 +824,6 @@
   const advisorResults = document.getElementById('advisor-results');
 
   function applyAdvisorRecommendation(rec) {
-    if (rec.floor_size) {
-      document.getElementById('floor_size_lable').value = rec.floor_size;
-      updateSizeAnalysis('floor', rec.floor_size);
-    }
-    if (rec.wall_size) {
-      document.getElementById('wall_size_lable').value = rec.wall_size;
-      updateSizeAnalysis('wall', rec.wall_size);
-    }
-    document.querySelectorAll('.chip-group').forEach((group) => {
-      const targetVal = document.getElementById(group.dataset.target).value.trim().toLowerCase();
-      group.querySelectorAll('.chip').forEach((c) => {
-        c.classList.toggle('active', c.dataset.value.toLowerCase() === targetVal);
-      });
-    });
-    if (rec.floor_finish) setSegmentedValue('floor_finish', rec.floor_finish);
-    if (rec.wall_finish) setSegmentedValue('wall_finish', rec.wall_finish);
     if (rec.floor_pattern) setSegmentedValue('floor_pattern', rec.floor_pattern);
     if (rec.wall_pattern) setSegmentedValue('wall_pattern', rec.wall_pattern);
     if (rec.floor_grout_color) {
@@ -848,7 +832,11 @@
     if (rec.wall_grout_color) {
       setGroutSelection('wall', rec.wall_grout_color, rec.wall_grout_color, 'custom', null, true);
     }
-    updateCalculator();
+  }
+
+  function extractHex(str, fallback = '#ccc') {
+    const m = (str || '').match(/#[0-9A-Fa-f]{6}/);
+    return m ? m[0] : fallback;
   }
 
   if (btnMatchRoom) {
@@ -882,21 +870,23 @@
         const dots = (data.dominant_colors || [])
           .map((hex) => `<span style="background:${hex}" title="${hex}"></span>`)
           .join('');
-        profile.innerHTML = `<span><strong>${data.style || 'Room'}</strong> • ${data.lighting_tone || ''}</span><div class="advisor-dots">${dots}</div>`;
+        profile.innerHTML = `<span><strong>Detected: ${data.detected_scene || 'Room'}</strong> • ${data.style || ''}</span><div class="advisor-dots">${dots}</div>`;
         advisorResults.appendChild(profile);
 
         (data.recommendations || []).forEach((rec) => {
           const card = document.createElement('div');
           card.className = 'advisor-card';
+          const fHex = extractHex(rec.floor_grout_color);
+          const wHex = extractHex(rec.wall_grout_color);
           card.innerHTML = `
             <div class="advisor-card-top">
-              <span class="advisor-card-title">${rec.title || 'Recommended Palette'}</span>
+              <span class="advisor-card-title">${rec.title || 'Recommended Setup'}</span>
               <button type="button" class="advisor-apply-btn">Apply</button>
             </div>
             <div class="advisor-reason">${rec.reason || ''}</div>
             <div class="advisor-swatches">
-              <span class="advisor-swatch-chip"><span class="advisor-swatch-dot" style="background:${rec.floor_tile_hex || '#ccc'}"></span>Floor: ${rec.floor_tile_name || ''} (${rec.floor_finish || ''})</span>
-              <span class="advisor-swatch-chip"><span class="advisor-swatch-dot" style="background:${rec.wall_tile_hex || '#ccc'}"></span>Wall: ${rec.wall_tile_name || ''} (${rec.wall_finish || ''})</span>
+              <span class="advisor-swatch-chip"><span class="advisor-swatch-dot" style="background:${fHex}"></span>Floor: ${rec.floor_pattern || 'grid'} • ${rec.floor_grout_color || ''}</span>
+              <span class="advisor-swatch-chip"><span class="advisor-swatch-dot" style="background:${wHex}"></span>Wall: ${rec.wall_pattern || 'grid'} • ${rec.wall_grout_color || ''}</span>
             </div>
           `;
           card.querySelector('.advisor-apply-btn').addEventListener('click', () => {
