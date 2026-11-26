@@ -906,67 +906,7 @@
     });
   }
 
-  // 13. SQLite3 Showroom Catalog & Persisted Render History
-  async function applyCatalogTile(tile, targetInputId, prefix) {
-    try {
-      const res = await fetch(tile.swatch_url);
-      if (!res.ok) return;
-      const blob = await res.blob();
-      const file = new File([blob], tile.swatch_filename, { type: blob.type || 'image/jpeg' });
-      const input = document.getElementById(targetInputId);
-      const dt = new DataTransfer();
-      dt.items.add(file);
-      input.files = dt.files;
-      input.dispatchEvent(new Event('change'));
-
-      const sizeInput = document.getElementById(`${prefix}_size_lable`);
-      if (sizeInput && tile.size_mm) {
-        sizeInput.value = tile.size_mm;
-        sizeInput.dispatchEvent(new Event('input'));
-      }
-      if (tile.finish) {
-        setSegmentedValue(`${prefix}_finish`, tile.finish);
-      }
-    } catch {
-      // ignore fetch errors
-    }
-  }
-
-  async function loadCatalog() {
-    const strip = document.getElementById('catalog-strip');
-    if (!strip) return;
-    try {
-      const res = await fetch('/api/catalog');
-      if (!res.ok) return;
-      const data = await res.json();
-      strip.innerHTML = '';
-      (data.tiles || []).forEach((tile) => {
-        const card = document.createElement('div');
-        card.className = 'catalog-card';
-        card.innerHTML = `
-          <img src="${tile.swatch_url}" alt="${tile.name}" loading="lazy" />
-          <div class="catalog-info">
-            <span class="catalog-name" title="${tile.name}">${tile.name}</span>
-            <span class="catalog-meta">${tile.size_mm} • ${tile.finish}</span>
-          </div>
-          <div class="catalog-actions">
-            <button type="button" class="catalog-btn" data-role="floor">Floor</button>
-            <button type="button" class="catalog-btn" data-role="wall">Wall</button>
-          </div>
-        `;
-        card.querySelector('[data-role="floor"]').addEventListener('click', () => {
-          applyCatalogTile(tile, 'floor_tile_image', 'floor');
-        });
-        card.querySelector('[data-role="wall"]').addEventListener('click', () => {
-          applyCatalogTile(tile, 'wall_tile_image_3', 'wall');
-        });
-        strip.appendChild(card);
-      });
-    } catch {
-      // ignore catalog load failure
-    }
-  }
-
+  // 13. SQLite3 Persisted Render History
   async function loadSavedRenders() {
     try {
       const res = await fetch('/api/renders');
@@ -989,6 +929,5 @@
     }
   }
 
-  loadCatalog();
   loadSavedRenders();
 })();
