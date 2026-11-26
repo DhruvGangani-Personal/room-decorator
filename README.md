@@ -58,7 +58,7 @@ AiPhotoGenerated/
 - `GET /api/tile-models` — Lists all tile size & aspect-ratio models loaded from `Models/tile_size_model.pkl`.
 - `GET /api/analyze-tile-size?size=600x1200+mm` — Analyzes a `mm` tile size against `Models/tile_size_model.pkl` and returns aspect ratio, 1-meter tile counts, and closest reference model.
 - `POST /generate-prompt` (`multipart/form-data`):
-  - `main_image` (file, **required**): Room reference photo (`png`, `jpg`, `jpeg`, `webp`).
+  - `main_image` (file, **required**): Room reference photo (`png`, `jpg`, `jpeg`, `webp`, `heic`, `heif`; HEIC/HEIF auto-converts to 98% JPG).
   - `floor_tile_image` (file, optional): Floor tile swatch.
   - `wall_tile_image_1` (file, optional): Left wall tile swatch.
   - `wall_tile_image_3` (file, optional): Center/back wall tile swatch.

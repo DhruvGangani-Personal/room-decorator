@@ -5,8 +5,12 @@ from pathlib import Path
 from flask_cors import CORS
 from google import genai
 from google.genai import types
-from PIL import Image
+from PIL import Image, ImageOps
+from pillow_heif import register_heif_opener
+import io
 import uuid
+
+register_heif_opener()
 from datetime import datetime
 from dotenv import load_dotenv
 from tile_size_model import (
@@ -24,7 +28,18 @@ CORS(app)
 # Configuration
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'generated_images'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'heic', 'heif'}
+
+def convert_heic_to_jpg(filepath, quality=98):
+    """Convert a HEIC/HEIF image to a 98%-quality RGB JPEG and return the new path."""
+    ext = Path(filepath).suffix.lower()
+    if ext not in {'.heic', '.heif'}:
+        return filepath
+    jpg_path = str(Path(filepath).with_suffix('.jpg'))
+    with Image.open(filepath) as img:
+        rgb_img = ImageOps.exif_transpose(img).convert('RGB')
+        rgb_img.save(jpg_path, format='JPEG', quality=quality, subsampling=0)
+    return jpg_path
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
@@ -349,6 +364,19 @@ def api_analyze_tile_size():
     orientation = request.args.get('orientation', 'horizontal')
     return jsonify(analyze_tile_size(size_str, orientation_mode=orientation)), 200
 
+@app.route('/api/preview-heic', methods=['POST'])
+def preview_heic():
+    """Convert an uploaded HEIC/HEIF file to 98% quality JPEG for browser preview."""
+    file_obj = request.files.get('file')
+    if not file_obj or file_obj.filename == '':
+        return jsonify({'error': 'No file provided'}), 400
+    with Image.open(file_obj.stream) as img:
+        rgb_img = ImageOps.exif_transpose(img).convert('RGB')
+        buf = io.BytesIO()
+        rgb_img.save(buf, format='JPEG', quality=98, subsampling=0)
+        buf.seek(0)
+    return send_file(buf, mimetype='image/jpeg')
+
 @app.route('/generate-prompt', methods=['POST'])
 def generate_prompt():
     """
@@ -389,12 +417,17 @@ def generate_prompt():
                 'message': f'Allowed types: {", ".join(ALLOWED_EXTENSIONS)}'
             }), 400
         
-        # Save main image
+        # Save main image (convert HEIC/HEIF to 98% JPG first)
         main_filename = secure_filename(main_file.filename)
         unique_main_filename = f"{uuid.uuid4().hex}_{main_filename}"
         main_filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_main_filename)
         main_file.save(main_filepath)
         uploaded_files.append(main_filepath)
+
+        converted_main_filepath = convert_heic_to_jpg(main_filepath, quality=98)
+        if converted_main_filepath != main_filepath:
+            uploaded_files.append(converted_main_filepath)
+            main_filepath = converted_main_filepath
 
         # Load main image as PIL Image
         main_pil_image = Image.open(main_filepath)
@@ -464,6 +497,10 @@ def generate_prompt():
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_name)
             file_obj.save(filepath)
             uploaded_files.append(filepath)
+            converted_path = convert_heic_to_jpg(filepath, quality=98)
+            if converted_path != filepath:
+                uploaded_files.append(converted_path)
+                filepath = converted_path
             idx = len(images_for_gemini)
             raw_tile = Image.open(filepath)
             swatch_sheet = build_tiled_swatch_sheet(

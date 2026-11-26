@@ -9,7 +9,7 @@ This file documents conventions, contracts, and guardrails for AI agents modifyi
 
 ## Tech Stack
 
-- **Backend**: Python, Flask (`app.py`), Pillow (`PIL`), `google-genai` SDK (`vertexai=True`), `python-dotenv`.
+- **Backend**: Python, Flask (`app.py`), Pillow (`PIL`), `pillow-heif` (HEIC/HEIF → 98% JPG conversion), `google-genai` SDK (`vertexai=True`), `python-dotenv`.
 - **Frontend**: Vanilla HTML/CSS/JS served by Flask (`templates/index.html`, `static/style.css`, `static/app.js`). No Node/npm build step.
 - **Python Environment**: Use `/home/ubuntu/Dhruv/AiPhotoGenerated/venv/bin/python` for running tests, compile checks, and the server.
 

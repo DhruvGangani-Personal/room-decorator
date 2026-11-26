@@ -65,15 +65,33 @@
     const nameEl = previewEl.querySelector('.preview-name');
     const clearBtn = previewEl.querySelector('.btn-clear');
 
-    function setFile(file) {
+    async function setFile(file) {
       if (!file) return;
-      const url = URL.createObjectURL(file);
+      let url;
+      const isHeic = /\.(heic|heif)$/i.test(file.name);
+      if (isHeic) {
+        try {
+          const fd = new FormData();
+          fd.append('file', file);
+          const res = await fetch('/api/preview-heic', { method: 'POST', body: fd });
+          if (res.ok) {
+            const jpgBlob = await res.blob();
+            url = URL.createObjectURL(jpgBlob);
+          } else {
+            url = URL.createObjectURL(file);
+          }
+        } catch {
+          url = URL.createObjectURL(file);
+        }
+      } else {
+        url = URL.createObjectURL(file);
+      }
       if (imgEl.dataset.blobUrl) {
         URL.revokeObjectURL(imgEl.dataset.blobUrl);
       }
       imgEl.dataset.blobUrl = url;
       imgEl.src = url;
-      nameEl.textContent = file.name;
+      nameEl.textContent = isHeic ? `${file.name} → JPG (98%)` : file.name;
       emptyEl.hidden = true;
       previewEl.hidden = false;
 
