@@ -21,6 +21,7 @@ Atelier Tile treats the uploaded room photograph (`main_image`) as an **immutabl
    - **Wall-to-Floor Grout Grid Alignment** is always enforced whenever both floor and wall tiles are provided, connecting vertical wall grout joints directly into the floor grout lines at the wall-to-floor junction.
    - **Tile Orientation, Pattern, Grout Width & Aspect Ratio**: Supports `horizontal`/`vertical` orientation, `grid`/`brick`/`herringbone`/`diagonal` laying patterns, `1 mm`–`5 mm` grout widths, and `4:3`/`16:9`/`1:1`/`3:4` output aspect ratios.
    - **HEIC / HEIF Auto-Conversion**: Uploaded `.heic` / `.heif` images are decoded via `pillow-heif`, EXIF-oriented, and converted to `98%` quality RGB JPEG (`subsampling=0`) before Gemini processing, with `POST /api/preview-heic` providing instant browser previews.
+   - **Contact Shadows & Finish Reflections**: `generate_interior_prompt()` grounds existing furniture/objects onto the new tiles with directional contact shadows & ambient occlusion, and renders diffused (`glossy`), mirror-like (`high glossy`), or non-reflective (`matt`) surface reflections.
    - The **Sync with Floor** (`sync_grout`) toggle additionally mirrors the selected grout color across both wall and floor.
 
 4. **Tile Size & Aspect-Ratio `.pkl` Model (`tile_size_model.py`)**

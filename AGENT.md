@@ -37,6 +37,7 @@ This file documents conventions, contracts, and guardrails for AI agents modifyi
    - `floor_orientation` & `wall_orientation`: `"horizontal"` (default) or `"vertical"` — controls whether rectangular tiles are laid horizontally (landscape) or vertically (portrait).
    - `floor_pattern` & `wall_pattern`: `"grid"` (default), `"brick"`, `"herringbone"`, or `"diagonal"` — applied both in `build_tiled_swatch_sheet()` / `generate_grid_blueprint()` and in prompt rules.
    - `floor_grout_width` & `wall_grout_width`: `"1 mm"`, `"2 mm"` (default), `"3 mm"`, or `"5 mm"`.
+   - **Shadows & Reflections (`app.py`)**: `LIGHTING & MATERIAL FINISH` always enforces realistic contact shadows & ambient occlusion under existing furniture/objects onto the new tiles, plus finish-accurate object reflections (`glossy` = diffused, `high glossy` = mirror-like, `matt` = non-reflective).
    - `aspect_ratio`: `"4:3"` (default), `"16:9"`, `"1:1"`, or `"3:4"` passed to `types.ImageConfig`.
    - `sync_grout` (boolean form field `"true"`/`"false"`): when enabled, additionally locks floor and wall grout to the exact same color.
 

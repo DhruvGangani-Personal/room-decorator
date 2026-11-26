@@ -151,14 +151,15 @@ def generate_interior_prompt(
     finishes = set(filter(None, [floor_finish, wall_finish]))
     rules_map = {
         "glossy": (
-            "Glossy finish: add subtle reflections and very soft light glare near windows or doors. "
-            "Keep tile colors rich and deep so the pattern remains clearly visible."
+            "Glossy finish: add subtle, diffused reflections of nearby furniture, windows, and room lights on the tile surface, "
+            "with soft light glare near windows or doors. Keep tile colors rich and deep so the pattern remains clearly visible."
         ),
         "high glossy": (
-            "High glossy finish: add strong mirror-like reflections, high shine, and bright specular highlights."
+            "High glossy finish: add clear, mirror-like reflections of furniture, room objects, and light sources on the polished tile surface, "
+            "along with high shine and bright specular highlights."
         ),
         "matt": (
-            "Matt finish: remove reflections entirely. Surface should look smooth, flat, and non-reflective."
+            "Matt finish: remove mirror reflections entirely. Surface should look smooth, flat, and non-reflective, while keeping natural contact shadows."
         ),
     }
     lighting_rules = "\n".join(
@@ -261,8 +262,9 @@ The count MUST match the stated tile density above. If it does not match, the ti
 Do NOT make tiles larger or smaller than declared. Do NOT guess the scale.
 
 LIGHTING & MATERIAL FINISH:
-Adjust lighting, reflections, and surface rendering strictly according to the specified tile finishes:
+Adjust lighting, reflections, shadows, and surface rendering strictly according to the specified tile finishes:
 {lighting_rules}
+- SHADOWS & AMBIENT OCCLUSION (MANDATORY): Cast realistic contact shadows and soft ambient occlusion directly beneath all existing furniture legs, sofas, tables, planters, decor objects, and wall-floor corners onto the newly laid tiles, matching the exact light direction of {main_image} so objects look physically grounded on the tile surface.
 Overall scene lighting must be natural, well-balanced, and consistent — no harsh overexposure or underlit areas.
 
 QUALITY:
