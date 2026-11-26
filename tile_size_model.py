@@ -413,6 +413,24 @@ def build_tiled_swatch_sheet(
                 patch = fitted_tile if ((r + c) % 2 == 0) else tile_rot
                 patch_fit = ImageOps.fit(patch, (step, step), method=Image.Resampling.LANCZOS)
                 sheet.paste(patch_fit, (x, y))
+    elif pattern == "bookmatch":
+        # 4-way symmetrical mirroring so veins flow continuously across joints
+        tile_h = ImageOps.mirror(fitted_tile)
+        tile_v = ImageOps.flip(fitted_tile)
+        tile_hv = ImageOps.flip(tile_h)
+        for r in range(rows):
+            for c in range(cols):
+                x = grout_px + c * (cell_w + grout_px)
+                y = grout_px + r * (cell_h + grout_px)
+                if r % 2 == 0 and c % 2 == 0:
+                    cell = fitted_tile
+                elif r % 2 == 0 and c % 2 == 1:
+                    cell = tile_h
+                elif r % 2 == 1 and c % 2 == 0:
+                    cell = tile_v
+                else:
+                    cell = tile_hv
+                sheet.paste(cell, (x, y))
     else:
         for r in range(rows):
             for c in range(cols):

@@ -34,12 +34,14 @@ AiPhotoGenerated/
 ## Setup & Run
 
 1. **Configure `.env`**:
+
    ```env
    GOOGLE_CLOUD_API_KEY=your_vertex_ai_api_key
    MODEL_NAME=gemini-3.1-flash-image
    ```
 
 2. **Install dependencies** (if not using the existing `venv`):
+
    ```bash
    python3 -m venv venv
    ./venv/bin/pip install -r requirements.txt
@@ -57,6 +59,7 @@ AiPhotoGenerated/
 - `GET /health` — Returns `{ "status": "healthy", "service": "Interior Design Generator API Working" }`.
 - `GET /api/tile-models` — Lists all tile size & aspect-ratio models loaded from `Models/tile_size_model.pkl`.
 - `GET /api/analyze-tile-size?size=600x1200+mm` — Analyzes a `mm` tile size against `Models/tile_size_model.pkl` and returns aspect ratio, 1-meter tile counts, and closest reference model.
+- `POST /api/match-my-room` (`multipart/form-data` with `main_image`) — Analyzes the uploaded room photo and returns 3 AI-recommended floor/wall tile & grout palettes.
 - `POST /generate-prompt` (`multipart/form-data`):
   - `main_image` (file, **required**): Room reference photo (`png`, `jpg`, `jpeg`, `webp`, `heic`, `heif`; HEIC/HEIF auto-converts to 98% JPG).
   - `floor_tile_image` (file, optional): Floor tile swatch.
@@ -67,7 +70,7 @@ AiPhotoGenerated/
   - `floor_size_lable` / `wall_size_lable` (string, optional, default: `"600x1200 mm"`): Tile dimensions.
   - `floor_finish` / `wall_finish` (string, optional): `"matt"`, `"glossy"`, or `"high glossy"`.
   - `floor_orientation` / `wall_orientation` (string, optional, default `"horizontal"`): `"horizontal"` or `"vertical"`.
-  - `floor_pattern` / `wall_pattern` (string, optional, default `"grid"`): `"grid"`, `"brick"`, `"herringbone"`, or `"diagonal"`.
+  - `floor_pattern` / `wall_pattern` (string, optional, default `"grid"`): `"grid"`, `"brick"`, `"herringbone"`, `"diagonal"`, or `"bookmatch"`.
   - `floor_grout_width` / `wall_grout_width` (string, optional, default `"2 mm"`): `"1 mm"`, `"2 mm"`, `"3 mm"`, or `"5 mm"`.
   - `aspect_ratio` (string, optional, default `"4:3"`): `"4:3"`, `"16:9"`, `"1:1"`, or `"3:4"`.
   - `floor_grout_color` / `wall_grout_color` (string, optional): Explicit grout color name/hex, or omitted for auto-contrast.

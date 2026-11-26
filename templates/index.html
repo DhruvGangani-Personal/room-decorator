@@ -74,6 +74,12 @@
                   </div>
                 </div>
               </div>
+
+              <button type="button" id="btn-match-room" class="btn btn-outline btn-sm btn-advisor" disabled>
+                <span class="advisor-sparkle" aria-hidden="true">&#10024;</span>
+                <span id="btn-match-label">Match My Room (AI Advisor)</span>
+              </button>
+              <div id="advisor-results" class="advisor-results" hidden></div>
             </section>
 
             <!-- 2. Scene Type -->
@@ -146,11 +152,12 @@
 
               <div class="field-group">
                 <label>Floor Laying Pattern</label>
-                <div class="segmented-control" data-name="floor_pattern">
+                <div class="segmented-control segmented-control-5" data-name="floor_pattern">
                   <button type="button" class="seg-btn active" data-value="grid">Grid</button>
                   <button type="button" class="seg-btn" data-value="brick">Brick</button>
                   <button type="button" class="seg-btn" data-value="herringbone">Herringbone</button>
                   <button type="button" class="seg-btn" data-value="diagonal">Diagonal</button>
+                  <button type="button" class="seg-btn" data-value="bookmatch">Bookmatch</button>
                 </div>
                 <input type="hidden" id="floor_pattern" name="floor_pattern" value="grid" />
               </div>
@@ -282,11 +289,12 @@
 
               <div class="field-group">
                 <label>Wall Laying Pattern</label>
-                <div class="segmented-control" data-name="wall_pattern">
+                <div class="segmented-control segmented-control-5" data-name="wall_pattern">
                   <button type="button" class="seg-btn active" data-value="grid">Grid</button>
                   <button type="button" class="seg-btn" data-value="brick">Brick</button>
                   <button type="button" class="seg-btn" data-value="herringbone">Herringbone</button>
                   <button type="button" class="seg-btn" data-value="diagonal">Diagonal</button>
+                  <button type="button" class="seg-btn" data-value="bookmatch">Bookmatch</button>
                 </div>
                 <input type="hidden" id="wall_pattern" name="wall_pattern" value="grid" />
               </div>

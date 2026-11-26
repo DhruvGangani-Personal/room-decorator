@@ -97,6 +97,8 @@
 
       if (inputId === 'main_image') {
         mainPreviewUrl = url;
+        const matchBtn = document.getElementById('btn-match-room');
+        if (matchBtn) matchBtn.disabled = false;
       }
 
       // Auto-select "matt" finish if user uploads a tile swatch and finish is still "None"
@@ -126,6 +128,13 @@
       emptyEl.hidden = false;
       if (inputId === 'main_image') {
         mainPreviewUrl = null;
+        const matchBtn = document.getElementById('btn-match-room');
+        const advResults = document.getElementById('advisor-results');
+        if (matchBtn) matchBtn.disabled = true;
+        if (advResults) {
+          advResults.hidden = true;
+          advResults.innerHTML = '';
+        }
       } else if (inputId === 'floor_tile_image') {
         resetTileTone('floor');
       } else if (
@@ -808,4 +817,102 @@
     if (el) el.addEventListener('input', updateCalculator);
   });
   updateCalculator();
+
+  // 12. AI Tile & Palette Advisor ("Match My Room")
+  const btnMatchRoom = document.getElementById('btn-match-room');
+  const btnMatchLabel = document.getElementById('btn-match-label');
+  const advisorResults = document.getElementById('advisor-results');
+
+  function applyAdvisorRecommendation(rec) {
+    if (rec.floor_size) {
+      document.getElementById('floor_size_lable').value = rec.floor_size;
+      updateSizeAnalysis('floor', rec.floor_size);
+    }
+    if (rec.wall_size) {
+      document.getElementById('wall_size_lable').value = rec.wall_size;
+      updateSizeAnalysis('wall', rec.wall_size);
+    }
+    document.querySelectorAll('.chip-group').forEach((group) => {
+      const targetVal = document.getElementById(group.dataset.target).value.trim().toLowerCase();
+      group.querySelectorAll('.chip').forEach((c) => {
+        c.classList.toggle('active', c.dataset.value.toLowerCase() === targetVal);
+      });
+    });
+    if (rec.floor_finish) setSegmentedValue('floor_finish', rec.floor_finish);
+    if (rec.wall_finish) setSegmentedValue('wall_finish', rec.wall_finish);
+    if (rec.floor_pattern) setSegmentedValue('floor_pattern', rec.floor_pattern);
+    if (rec.wall_pattern) setSegmentedValue('wall_pattern', rec.wall_pattern);
+    if (rec.floor_grout_color) {
+      setGroutSelection('floor', rec.floor_grout_color, rec.floor_grout_color, 'custom', null, true);
+    }
+    if (rec.wall_grout_color) {
+      setGroutSelection('wall', rec.wall_grout_color, rec.wall_grout_color, 'custom', null, true);
+    }
+    updateCalculator();
+  }
+
+  if (btnMatchRoom) {
+    btnMatchRoom.addEventListener('click', async () => {
+      const mainInput = document.getElementById('main_image');
+      if (!mainInput.files || !mainInput.files[0]) return;
+
+      btnMatchRoom.disabled = true;
+      btnMatchLabel.textContent = 'Analyzing Room…';
+      advisorResults.hidden = true;
+
+      try {
+        const fd = new FormData();
+        fd.append('main_image', mainInput.files[0]);
+        const res = await fetch('/api/match-my-room', { method: 'POST', body: fd });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.message || err.error || 'Analysis failed');
+        }
+        const data = await res.json();
+
+        if (data.detected_scene) {
+          const sceneInput = document.getElementById('scene');
+          sceneInput.value = data.detected_scene;
+          sceneInput.dispatchEvent(new Event('input'));
+        }
+
+        advisorResults.innerHTML = '';
+        const profile = document.createElement('div');
+        profile.className = 'advisor-profile';
+        const dots = (data.dominant_colors || [])
+          .map((hex) => `<span style="background:${hex}" title="${hex}"></span>`)
+          .join('');
+        profile.innerHTML = `<span><strong>${data.style || 'Room'}</strong> • ${data.lighting_tone || ''}</span><div class="advisor-dots">${dots}</div>`;
+        advisorResults.appendChild(profile);
+
+        (data.recommendations || []).forEach((rec) => {
+          const card = document.createElement('div');
+          card.className = 'advisor-card';
+          card.innerHTML = `
+            <div class="advisor-card-top">
+              <span class="advisor-card-title">${rec.title || 'Recommended Palette'}</span>
+              <button type="button" class="advisor-apply-btn">Apply</button>
+            </div>
+            <div class="advisor-reason">${rec.reason || ''}</div>
+            <div class="advisor-swatches">
+              <span class="advisor-swatch-chip"><span class="advisor-swatch-dot" style="background:${rec.floor_tile_hex || '#ccc'}"></span>Floor: ${rec.floor_tile_name || ''} (${rec.floor_finish || ''})</span>
+              <span class="advisor-swatch-chip"><span class="advisor-swatch-dot" style="background:${rec.wall_tile_hex || '#ccc'}"></span>Wall: ${rec.wall_tile_name || ''} (${rec.wall_finish || ''})</span>
+            </div>
+          `;
+          card.querySelector('.advisor-apply-btn').addEventListener('click', () => {
+            applyAdvisorRecommendation(rec);
+            card.querySelector('.advisor-apply-btn').textContent = 'Applied ✓';
+          });
+          advisorResults.appendChild(card);
+        });
+
+        advisorResults.hidden = false;
+      } catch (err) {
+        showError(err.message || 'Room analysis failed');
+      } finally {
+        btnMatchRoom.disabled = false;
+        btnMatchLabel.textContent = 'Match My Room (AI Advisor)';
+      }
+    });
+  }
 })();

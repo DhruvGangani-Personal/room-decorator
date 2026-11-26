@@ -559,6 +559,120 @@ body {
   color: var(--text-muted);
 }
 
+/* AI Tile & Palette Advisor */
+.btn-advisor {
+  width: 100%;
+  justify-content: center;
+  border-style: dashed;
+}
+
+.btn-advisor:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.advisor-results {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+}
+
+.advisor-profile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+}
+
+.advisor-dots {
+  display: inline-flex;
+  gap: 4px;
+}
+
+.advisor-dots span {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+.advisor-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 9px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.advisor-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.advisor-card-title {
+  font-size: 0.79rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.advisor-apply-btn {
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.advisor-apply-btn:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+.advisor-reason {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.advisor-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.7rem;
+  color: var(--text);
+}
+
+.advisor-swatch-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--surface-muted);
+  border: 1px solid var(--border);
+}
+
+.advisor-swatch-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
 .dropzone-tile {
   min-height: 104px;
   display: grid;
@@ -717,6 +831,15 @@ body {
 
 .segmented-control-2 {
   grid-template-columns: repeat(2, 1fr);
+}
+
+.segmented-control-5 {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.segmented-control-5 .seg-btn {
+  font-size: 0.7rem;
+  padding: 6px 2px;
 }
 
 .seg-btn {

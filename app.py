@@ -8,6 +8,7 @@ from google.genai import types
 from PIL import Image, ImageOps
 from pillow_heif import register_heif_opener
 import io
+import json
 import uuid
 
 register_heif_opener()
@@ -104,6 +105,7 @@ def generate_interior_prompt(
         "brick": "Lay tiles in a BRICK / RUNNING BOND pattern with a 50% staggered offset on alternating rows.",
         "herringbone": "Lay tiles in an interlocking HERRINGBONE zig-zag pattern at 90-degree alternating angles.",
         "diagonal": "Lay tiles in a 45-DEGREE DIAGONAL diamond pattern.",
+        "bookmatch": "Lay tiles in a SYMMETRICAL BOOKMATCH & CONTINUOUS VEIN-FLOW pattern: mirror adjacent tiles horizontally and vertically across grout joints so stone/marble veins connect seamlessly into symmetrical butterfly and diamond patterns.",
     }
     floor_pattern_rule = pattern_map.get(floor_pattern, pattern_map["grid"])
     wall_pattern_rule = pattern_map.get(wall_pattern, pattern_map["grid"])
@@ -379,6 +381,75 @@ def preview_heic():
         buf.seek(0)
     return send_file(buf, mimetype='image/jpeg')
 
+@app.route('/api/match-my-room', methods=['POST'])
+def match_my_room():
+    """Analyze the uploaded room photo and recommend 3 tile & grout palettes."""
+    file_obj = request.files.get('main_image')
+    if not file_obj or file_obj.filename == '':
+        return jsonify({'error': 'main_image is required'}), 400
+
+    temp_files = []
+    try:
+        safe_name = secure_filename(file_obj.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], f"{uuid.uuid4().hex}_{safe_name}")
+        file_obj.save(filepath)
+        temp_files.append(filepath)
+
+        converted = convert_heic_to_jpg(filepath, quality=98)
+        if converted != filepath:
+            temp_files.append(converted)
+            filepath = converted
+
+        room_img = Image.open(filepath)
+        advisor_prompt = (
+            "You are an expert architectural interior & tile designer. Analyze this room photo "
+            "(furniture, woodwork, curtains, wall colors, natural/indoor lighting, and style) and "
+            "return ONLY valid JSON with this exact schema:\n"
+            "{\n"
+            '  "detected_scene": "living room | bathroom | kitchen | bedroom | hallway | commercial lobby | office | outdoor",\n'
+            '  "style": "short 2-3 word style name",\n'
+            '  "lighting_tone": "short 2-3 word lighting description",\n'
+            '  "dominant_colors": ["#HEX1", "#HEX2", "#HEX3"],\n'
+            '  "recommendations": [\n'
+            "    {\n"
+            '      "title": "short 2-4 word palette name",\n'
+            '      "reason": "1 concise sentence explaining why it suits this room",\n'
+            '      "floor_tile_name": "e.g. Warm Travertine",\n'
+            '      "floor_tile_hex": "#HEX",\n'
+            '      "floor_size": "one of: 200x1200 mm, 300x450 mm, 600x600 mm, 600x1200 mm, 800x800 mm, 800x1600 mm, 800x2400 mm, 1200x1200 mm, 1200x1800 mm",\n'
+            '      "floor_finish": "matt | glossy | high glossy",\n'
+            '      "floor_pattern": "grid | brick | herringbone | diagonal | bookmatch",\n'
+            '      "floor_grout_color": "Name (#HEX)",\n'
+            '      "wall_tile_name": "e.g. Matte Oak Plank",\n'
+            '      "wall_tile_hex": "#HEX",\n'
+            '      "wall_size": "one of: 200x1200 mm, 300x450 mm, 600x600 mm, 600x1200 mm, 800x800 mm, 800x1600 mm, 800x2400 mm, 1200x1200 mm, 1200x1800 mm",\n'
+            '      "wall_finish": "matt | glossy | high glossy",\n'
+            '      "wall_pattern": "grid | brick | herringbone | diagonal | bookmatch",\n'
+            '      "wall_grout_color": "Name (#HEX)"\n'
+            "    }\n"
+            "  ]\n"
+            "}\n"
+            "Provide exactly 3 diverse, tasteful recommendations."
+        )
+
+        response = client.models.generate_content(
+            model=os.getenv("ADVISOR_MODEL", "gemini-2.5-flash"),
+            contents=[advisor_prompt, room_img],
+            config=types.GenerateContentConfig(response_mime_type="application/json"),
+        )
+        data = json.loads(response.text)
+        return jsonify(data), 200
+    except Exception as e:
+        app.logger.error(f"Match My Room error: {str(e)}")
+        return jsonify({'error': 'Room analysis failed', 'message': str(e)}), 500
+    finally:
+        for p in temp_files:
+            try:
+                if os.path.exists(p):
+                    os.remove(p)
+            except Exception:
+                pass
+
 @app.route('/generate-prompt', methods=['POST'])
 def generate_prompt():
     """
@@ -462,9 +533,9 @@ def generate_prompt():
             floor_orientation = 'horizontal'
         if wall_orientation not in ('horizontal', 'vertical'):
             wall_orientation = 'horizontal'
-        if floor_pattern not in ('grid', 'brick', 'herringbone', 'diagonal'):
+        if floor_pattern not in ('grid', 'brick', 'herringbone', 'diagonal', 'bookmatch'):
             floor_pattern = 'grid'
-        if wall_pattern not in ('grid', 'brick', 'herringbone', 'diagonal'):
+        if wall_pattern not in ('grid', 'brick', 'herringbone', 'diagonal', 'bookmatch'):
             wall_pattern = 'grid'
         if aspect_ratio not in ('4:3', '16:9', '1:1', '3:4'):
             aspect_ratio = '4:3'

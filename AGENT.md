@@ -35,7 +35,7 @@ This file documents conventions, contracts, and guardrails for AI agents modifyi
    - `floor_grout_color` and `wall_grout_color` are optional strings (e.g., `"Warm Almond (#DDD0C0)"` or `"#3B3F45"`). When omitted/empty, the prompt falls back to automatic contrasting grout.
    - **Wall-to-Floor Grout Grid Alignment**: Always enforced whenever both floor and wall tiles are present so vertical wall grout joints connect seamlessly with floor grout lines at the wall-floor junction.
    - `floor_orientation` & `wall_orientation`: `"horizontal"` (default) or `"vertical"` — controls whether rectangular tiles are laid horizontally (landscape) or vertically (portrait).
-   - `floor_pattern` & `wall_pattern`: `"grid"` (default), `"brick"`, `"herringbone"`, or `"diagonal"` — applied both in `build_tiled_swatch_sheet()` / `generate_grid_blueprint()` and in prompt rules.
+   - `floor_pattern` & `wall_pattern`: `"grid"` (default), `"brick"`, `"herringbone"`, `"diagonal"`, or `"bookmatch"` (4-way symmetrical vein-flow mirroring) — applied both in `build_tiled_swatch_sheet()` / `generate_grid_blueprint()` and in prompt rules.
    - `floor_grout_width` & `wall_grout_width`: `"1 mm"`, `"2 mm"` (default), `"3 mm"`, or `"5 mm"`.
    - **Shadows & Reflections (`app.py`)**: `LIGHTING & MATERIAL FINISH` always enforces realistic contact shadows & ambient occlusion under existing furniture/objects onto the new tiles, plus finish-accurate object reflections (`glossy` = diffused, `high glossy` = mirror-like, `matt` = non-reflective).
    - `aspect_ratio`: `"4:3"` (default), `"16:9"`, `"1:1"`, or `"3:4"` passed to `types.ImageConfig`.
@@ -47,8 +47,9 @@ This file documents conventions, contracts, and guardrails for AI agents modifyi
    - `POST /generate-prompt` converts each uploaded tile swatch into an orientation-locked multi-tile grid sheet (`build_tiled_swatch_sheet`) and attaches clean, furniture-free floor perspective and wall frontal grid blueprints (`generate_grid_blueprint`).
    - If new tile images are added to `Models/`, re-run `venv/bin/python tile_size_model.py` to rebuild `Models/tile_size_model.pkl`.
 
-6. **Vertex AI Model**:
-   - Model name is loaded from `MODEL_NAME` in `.env` (defaulting to `gemini-3.1-flash-image`). Do not hardcode deprecated preview model IDs.
+6. **Vertex AI Models**:
+   - Image generation model is loaded from `MODEL_NAME` in `.env` (defaulting to `gemini-3.1-flash-image`). Do not hardcode deprecated preview model IDs.
+   - Room advisor (`POST /api/match-my-room`) uses `ADVISOR_MODEL` (defaulting to `gemini-2.5-flash`) with `response_mime_type="application/json"` to analyze `main_image` and return 3 structured tile & grout palettes.
 
 ## Verification Checklist
 
