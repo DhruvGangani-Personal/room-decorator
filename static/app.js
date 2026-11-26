@@ -709,7 +709,32 @@
     if (syncGrout) syncGrout.checked = false;
     resetTileTone('floor');
     resetTileTone('wall');
+    updateSizeAnalysis('floor', '600x1200 mm');
+    updateSizeAnalysis('wall', '600x1200 mm');
     updateCalculator();
+
+    // Clear right-side rendered result, comparison views, and session history
+    sessionHistory.forEach((item) => {
+      if (item.resultUrl) URL.revokeObjectURL(item.resultUrl);
+    });
+    sessionHistory.length = 0;
+    activeResultUrl = null;
+    historyItems.innerHTML = '';
+    historyStrip.hidden = true;
+
+    [resultImg, compareBefore, compareAfter, sbsBefore, sbsAfter].forEach((img) => {
+      if (img) img.removeAttribute('src');
+    });
+    btnDownload.removeAttribute('href');
+    viewResult.hidden = true;
+    viewCompare.hidden = true;
+    viewSideBySide.hidden = true;
+    viewTabs.hidden = true;
+    toolbarActions.hidden = true;
+    stateLoading.hidden = true;
+    stateEmpty.hidden = false;
+    canvasMeta.textContent = 'Ready to visualize';
+    currentView = 'result';
   });
 
   // 11. Tile Area & Box Calculator
