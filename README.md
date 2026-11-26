@@ -60,6 +60,9 @@ AiPhotoGenerated/
 - `GET /api/tile-models` — Lists all tile size & aspect-ratio models loaded from `Models/tile_size_model.pkl`.
 - `GET /api/analyze-tile-size?size=600x1200+mm` — Analyzes a `mm` tile size against `Models/tile_size_model.pkl` and returns aspect ratio, 1-meter tile counts, and closest reference model.
 - `POST /api/match-my-room` (`multipart/form-data` with `main_image`) — Analyzes the uploaded room photo and returns 3 AI-recommended floor/wall tile & grout palettes.
+- `GET /api/renders` & `DELETE /api/renders/<id>` — List or delete persisted render history from SQLite3 (`database/atelier_tile.db`).
+- `GET /api/room-analyses` — List persisted AI Room Advisor results from SQLite3.
+- `GET /api/catalog` & `POST /api/catalog` — List or add tiles in the SQLite3 Tile Showroom Catalog.
 - `POST /generate-prompt` (`multipart/form-data`):
   - `main_image` (file, **required**): Room reference photo (`png`, `jpg`, `jpeg`, `webp`, `heic`, `heif`; HEIC/HEIF auto-converts to 98% JPG).
   - `floor_tile_image` (file, optional): Floor tile swatch.

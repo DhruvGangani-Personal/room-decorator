@@ -1,5 +1,6 @@
-from flask import Flask, request, jsonify, send_file, render_template
+from flask import Flask, request, jsonify, send_file, send_from_directory, render_template
 from werkzeug.utils import secure_filename
+import hashlib
 import os
 from pathlib import Path
 from flask_cors import CORS
@@ -19,6 +20,16 @@ from tile_size_model import (
     build_tiled_swatch_sheet,
     generate_grid_blueprint,
     load_tile_size_pkl,
+)
+from database import (
+    add_tile,
+    delete_render,
+    init_db,
+    list_renders,
+    list_room_analyses,
+    list_tiles,
+    save_render,
+    save_room_analysis,
 )
 
 load_dotenv()
@@ -48,6 +59,7 @@ app.config['OUTPUT_FOLDER'] = OUTPUT_FOLDER
 # Create directories if they don't exist
 Path(UPLOAD_FOLDER).mkdir(parents=True, exist_ok=True)
 Path(OUTPUT_FOLDER).mkdir(parents=True, exist_ok=True)
+init_db()
 
 # Initialize Gemini client
 # client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
@@ -430,6 +442,9 @@ def match_my_room():
             config=types.GenerateContentConfig(response_mime_type="application/json"),
         )
         data = json.loads(response.text)
+        image_hash = hashlib.sha256(Path(filepath).read_bytes()).hexdigest()
+        analysis_id = save_room_analysis(image_hash, data)
+        data['analysis_id'] = analysis_id
         return jsonify(data), 200
     except Exception as e:
         app.logger.error(f"Match My Room error: {str(e)}")
@@ -671,6 +686,27 @@ def generate_prompt():
                 'error': 'Image generation failed',
                 'message': result
             }), 500
+
+        # Persist render history in SQLite3
+        save_render({
+            "scene": scene,
+            "output_filename": os.path.basename(result),
+            "output_image_path": result,
+            "floor_size": floor_size_info['size_label'],
+            "floor_finish": floor_finish,
+            "floor_orientation": floor_orientation,
+            "floor_pattern": floor_pattern,
+            "floor_grout_width": floor_grout_width,
+            "floor_grout_color": floor_grout_color,
+            "wall_size": wall_size_info['size_label'],
+            "wall_finish": wall_finish,
+            "wall_orientation": wall_orientation,
+            "wall_pattern": wall_pattern,
+            "wall_grout_width": wall_grout_width,
+            "wall_grout_color": wall_grout_color,
+            "aspect_ratio": aspect_ratio,
+            "sync_grout": sync_grout,
+        })
                 
         # Return response
         return send_file(result, mimetype="image/jpeg")
@@ -690,6 +726,55 @@ def generate_prompt():
                     # app.logger.info(f"Cleaned up uploaded file: {file_path}")
             except Exception as cleanup_error:
                 app.logger.error(f"Error cleaning up file {file_path}: {str(cleanup_error)}")
+
+
+@app.route('/generated/<path:filename>', methods=['GET'])
+def serve_generated(filename):
+    """Serve saved render images from generated_images/"""
+    return send_from_directory(app.config['OUTPUT_FOLDER'], filename)
+
+@app.route('/models-swatch/<path:filename>', methods=['GET'])
+def serve_model_swatch(filename):
+    """Serve showroom catalog swatch images from Models/"""
+    return send_from_directory('Models', filename)
+
+@app.route('/api/renders', methods=['GET'])
+def api_list_renders():
+    """Return persisted render history from SQLite3"""
+    rows = list_renders(limit=24)
+    for r in rows:
+        r['image_url'] = f"/generated/{r['output_filename']}"
+    return jsonify({'renders': rows}), 200
+
+@app.route('/api/renders/<int:render_id>', methods=['DELETE'])
+def api_delete_render(render_id):
+    """Delete a render history record"""
+    deleted = delete_render(render_id)
+    return jsonify({'deleted': deleted}), 200 if deleted else 404
+
+@app.route('/api/room-analyses', methods=['GET'])
+def api_list_room_analyses():
+    """Return persisted AI Room Advisor results from SQLite3"""
+    return jsonify({'analyses': list_room_analyses(limit=20)}), 200
+
+@app.route('/api/catalog', methods=['GET', 'POST'])
+def api_catalog():
+    """List or add tiles in the SQLite3 Tile Showroom Catalog"""
+    if request.method == 'POST':
+        payload = request.get_json(silent=True) or {}
+        required = ('sku_code', 'name', 'swatch_filename', 'size_mm')
+        if not all(payload.get(k) for k in required):
+            return jsonify({'error': 'Missing required fields: sku_code, name, swatch_filename, size_mm'}), 400
+        try:
+            tile_id = add_tile(payload)
+            return jsonify({'id': tile_id, 'status': 'created'}), 201
+        except Exception as e:
+            return jsonify({'error': str(e)}), 400
+
+    tiles = list_tiles()
+    for t in tiles:
+        t['swatch_url'] = f"/models-swatch/{t['swatch_filename']}"
+    return jsonify({'tiles': tiles}), 200
 
 
 if __name__ == '__main__':

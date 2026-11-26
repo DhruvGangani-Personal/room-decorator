@@ -23,6 +23,7 @@ Atelier Tile treats the uploaded room photograph (`main_image`) as an **immutabl
    - **HEIC / HEIF Auto-Conversion**: Uploaded `.heic` / `.heif` images are decoded via `pillow-heif`, EXIF-oriented, and converted to `98%` quality RGB JPEG (`subsampling=0`) before Gemini processing, with `POST /api/preview-heic` providing instant browser previews.
    - **Contact Shadows & Finish Reflections**: `generate_interior_prompt()` grounds existing furniture/objects onto the new tiles with directional contact shadows & ambient occlusion, and renders diffused (`glossy`), mirror-like (`high glossy`), or non-reflective (`matt`) surface reflections.
    - **AI Tile & Palette Advisor (`POST /api/match-my-room`)**: Uses `gemini-2.5-flash` vision with structured JSON output to detect room type (`living room`, `office`, `bathroom`, etc.) and recommend 3 best-matching grout color & laying pattern pairings with 1-click UI application.
+   - **SQLite3 Persistence (`database/__init__.py` -> `database/atelier_tile.db`)**: Stores three tables: `renders` (persisted render history & settings), `room_analyses` (AI Room Advisor detections & recommendations), and `tiles` (Showroom Catalog seeded from `Models/`).
    - The **Sync with Floor** (`sync_grout`) toggle additionally mirrors the selected grout color across both wall and floor.
 
 4. **Tile Size & Aspect-Ratio `.pkl` Model (`tile_size_model.py`)**

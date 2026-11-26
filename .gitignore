@@ -28,6 +28,11 @@ uploads/*
 generated_images/*
 !generated_images/.gitkeep
 
+# Databases
+# *.db
+*.sqlite
+*.sqlite3
+
 # Logs & temporary files
 *.log
 *.tmp
