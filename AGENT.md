@@ -37,8 +37,8 @@ This file documents conventions, contracts, and guardrails for AI agents modifyi
 
 4. **Tile Size `.pkl` Model (`tile_size_model.py` & `Models/tile_size_model.pkl`)**:
    - Reference tile size images live in `Models/` and room-grid reference renders live in `Models/Tile apply according to sized/` (covering 9 sizes: `200x1200`, `300x450`, `600x600`, `600x1200`, `800x800`, `800x1600`, `800x2400`, `1200x1200`, `1200x1800` mm).
-   - `tile_size_model.py` builds `Models/tile_size_model.pkl` from both directories and exposes `analyze_tile_size(size_input, orientation_mode="horizontal")`, `load_tile_size_pkl()`, and `load_grid_reference_image(size_input)` (which loads a 768px-resized room-grid blueprint from `Tile apply according to sized/`).
-   - `POST /generate-prompt` attaches the matched `grid_reference_image` (deduplicated if floor & wall share the same size) to `images_for_gemini` and passes `floor_count_check`, `wall_count_check`, `floor_grid_ref`, and `wall_grid_ref` into `generate_interior_prompt()`.
+   - `tile_size_model.py` builds `Models/tile_size_model.pkl` from both directories and exposes `analyze_tile_size(size_input, orientation_mode="horizontal")`, `load_tile_size_pkl()`, `build_tiled_swatch_sheet()`, and `generate_grid_blueprint()`.
+   - `POST /generate-prompt` converts each uploaded tile swatch into an orientation-locked multi-tile grid sheet (`build_tiled_swatch_sheet`) and attaches clean, furniture-free floor perspective and wall frontal grid blueprints (`generate_grid_blueprint`).
    - If new tile images are added to `Models/`, re-run `venv/bin/python tile_size_model.py` to rebuild `Models/tile_size_model.pkl`.
 
 5. **Vertex AI Model**:

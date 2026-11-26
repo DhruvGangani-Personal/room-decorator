@@ -10,7 +10,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-from PIL import Image
+from PIL import Image, ImageDraw, ImageOps
 
 BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_MODELS_DIR = BASE_DIR / "Models"
@@ -310,6 +310,159 @@ def load_grid_reference_image(
     img = Image.open(ref_path).convert("RGB")
     img.thumbnail((max_dim, max_dim), Image.Resampling.LANCZOS)
     return img, ref_path.name
+
+
+def _parse_hex_color(color_str: Optional[str], default: Tuple[int, int, int] = (210, 205, 198)) -> Tuple[int, int, int]:
+    """Extract an RGB tuple from a color string like 'Warm Almond (#DDD0C0)' or '#3B3F45'."""
+    if not color_str:
+        return default
+    m = re.search(r"#([0-9A-Fa-f]{6})", color_str)
+    if not m:
+        return default
+    hex_val = m.group(1)
+    return (int(hex_val[0:2], 16), int(hex_val[2:4], 16), int(hex_val[4:6], 16))
+
+
+def build_tiled_swatch_sheet(
+    tile_img: Image.Image,
+    size_input: str,
+    orientation_mode: str = "horizontal",
+    grout_color: Optional[str] = None,
+    sheet_size: int = 768,
+) -> Image.Image:
+    """
+    Build a multi-tile grid sheet from a single uploaded tile swatch so Gemini
+    directly observes the exact aspect ratio, orientation, and grout lines.
+    """
+    info = analyze_tile_size(size_input, orientation_mode=orientation_mode)
+    if info.get("valid"):
+        w_mm = info["width_mm"]
+        h_mm = info["height_mm"]
+        short_mm, long_mm = min(w_mm, h_mm), max(w_mm, h_mm)
+        if w_mm == h_mm:
+            eff_w, eff_h = w_mm, h_mm
+        elif orientation_mode == "vertical":
+            eff_w, eff_h = short_mm, long_mm
+        else:
+            eff_w, eff_h = long_mm, short_mm
+    else:
+        eff_w, eff_h = (1200, 600) if orientation_mode == "horizontal" else (600, 1200)
+
+    ratio = eff_w / max(1, eff_h)
+    if ratio >= 1.5:
+        cols, rows = 2, 3
+    elif ratio <= 0.67:
+        cols, rows = 3, 2
+    else:
+        cols, rows = 2, 2
+
+    grout_rgb = _parse_hex_color(grout_color)
+    grout_px = 6
+
+    tile_rgb = tile_img.convert("RGB")
+    # Rotate swatch 90 deg if its natural aspect opposes the requested orientation
+    tw, th = tile_rgb.size
+    if eff_w > eff_h and th > tw:
+        tile_rgb = tile_rgb.rotate(90, expand=True)
+    elif eff_h > eff_w and tw > th:
+        tile_rgb = tile_rgb.rotate(90, expand=True)
+
+    # Compute cell pixel dimensions preserving exact eff_w : eff_h ratio
+    total_w_units = cols * eff_w
+    total_h_units = rows * eff_h
+    scale = min(
+        (sheet_size - grout_px * (cols + 1)) / total_w_units,
+        (sheet_size - grout_px * (rows + 1)) / total_h_units,
+    )
+    cell_w = max(32, int(round(eff_w * scale)))
+    cell_h = max(32, int(round(eff_h * scale)))
+
+    canvas_w = cols * cell_w + (cols + 1) * grout_px
+    canvas_h = rows * cell_h + (rows + 1) * grout_px
+    sheet = Image.new("RGB", (canvas_w, canvas_h), grout_rgb)
+
+    fitted_tile = ImageOps.fit(tile_rgb, (cell_w, cell_h), method=Image.Resampling.LANCZOS)
+
+    for r in range(rows):
+        for c in range(cols):
+            x = grout_px + c * (cell_w + grout_px)
+            y = grout_px + r * (cell_h + grout_px)
+            sheet.paste(fitted_tile, (x, y))
+
+    return sheet
+
+
+def generate_grid_blueprint(
+    size_input: str,
+    surface: str = "floor",
+    orientation_mode: str = "horizontal",
+    width: int = 768,
+    height: int = 576,
+) -> Image.Image:
+    """
+    Generate a clean, furniture-free grid blueprint image showing exact tile
+    aspect ratio, orientation, and density on a floor (perspective) or wall (frontal).
+    """
+    info = analyze_tile_size(size_input, orientation_mode=orientation_mode)
+    if info.get("valid"):
+        w_mm, h_mm = info["width_mm"], info["height_mm"]
+        short_mm, long_mm = min(w_mm, h_mm), max(w_mm, h_mm)
+        if w_mm == h_mm:
+            eff_w, eff_h = w_mm, h_mm
+        elif orientation_mode == "vertical":
+            eff_w, eff_h = short_mm, long_mm
+        else:
+            eff_w, eff_h = long_mm, short_mm
+    else:
+        eff_w, eff_h = (1200, 600) if orientation_mode == "horizontal" else (600, 1200)
+
+    canvas = Image.new("RGB", (width, height), (255, 255, 255))
+    draw = ImageDraw.Draw(canvas)
+    line_color = (30, 30, 30)
+
+    # Assume a ~4.2m wide x ~3.0m tall/deep reference span
+    cols = max(2.0, min(14.0, 4200.0 / eff_w))
+    rows = max(2.0, min(14.0, 3000.0 / eff_h))
+
+    if surface == "floor":
+        # Draw 1-point perspective floor trapezoid in lower 65% of frame
+        horizon_y = int(height * 0.36)
+        bottom_y = height - 12
+        vp_x = width // 2
+        vp_y = int(height * 0.12)
+
+        # Horizontal depth lines (foreshortened in perspective)
+        num_rows = int(round(rows))
+        for i in range(num_rows + 1):
+            t = i / num_rows
+            # Perspective foreshortening curve
+            t_persp = (t ** 1.65)
+            y = int(horizon_y + t_persp * (bottom_y - horizon_y))
+            draw.line([(0, y), (width, y)], fill=line_color, width=2)
+
+        # Vertical / radial perspective lines converging toward vanishing point
+        num_cols = int(round(cols))
+        margin = int(width * 0.35)
+        for j in range(-2, num_cols + 3):
+            bx = int(-margin + (j / num_cols) * (width + 2 * margin))
+            # Intersect ray from (vp_x, vp_y) through (bx, bottom_y) with y = horizon_y
+            if bottom_y != vp_y:
+                hx = int(vp_x + (bx - vp_x) * ((horizon_y - vp_y) / (bottom_y - vp_y)))
+            else:
+                hx = bx
+            draw.line([(hx, horizon_y), (bx, bottom_y)], fill=line_color, width=2)
+    else:
+        # Frontal wall grid
+        num_cols = int(round(cols))
+        num_rows = int(round(rows))
+        for c in range(num_cols + 1):
+            x = int(c * (width / num_cols))
+            draw.line([(x, 0), (x, height)], fill=line_color, width=2)
+        for r in range(num_rows + 1):
+            y = int(r * (height / num_rows))
+            draw.line([(0, y), (width, y)], fill=line_color, width=2)
+
+    return canvas
 
 
 if __name__ == "__main__":

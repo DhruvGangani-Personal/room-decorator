@@ -9,7 +9,12 @@ from PIL import Image
 import uuid
 from datetime import datetime
 from dotenv import load_dotenv
-from tile_size_model import analyze_tile_size, load_grid_reference_image, load_tile_size_pkl
+from tile_size_model import (
+    analyze_tile_size,
+    build_tiled_swatch_sheet,
+    generate_grid_blueprint,
+    load_tile_size_pkl,
+)
 
 load_dotenv()
 
@@ -171,22 +176,22 @@ def generate_interior_prompt(
 
     grid_ref_lines = []
     if floor_grid_ref:
-        floor_rotate_note = (
-            " NOTE: Rotate the tile grid 90 degrees to VERTICAL (portrait) orientation if the blueprint shows horizontal tiles."
+        floor_orient_note = (
+            " Follow the exact VERTICAL (portrait) perspective grid shown in the blueprint."
             if floor_orientation == "vertical"
-            else " Keep the tile grid in HORIZONTAL (landscape) orientation."
+            else " Follow the exact HORIZONTAL (landscape) perspective grid shown in the blueprint."
         )
         grid_ref_lines.append(
-            f"- Floor Grid & Scale Blueprint: Use {floor_grid_ref} STRICTLY as the tile size, aspect ratio, grid density, and grout-spacing reference for the floor ({floor_size_lable}).{floor_rotate_note} Do NOT copy its room, furniture, or tile color — ONLY copy its tile grid scale and proportions."
+            f"- Floor Grid & Scale Blueprint: Use {floor_grid_ref} STRICTLY as the tile size, aspect ratio, grid density, and grout-spacing reference for the floor ({floor_size_lable}).{floor_orient_note}"
         )
     if wall_grid_ref:
-        wall_rotate_note = (
-            " NOTE: Rotate the tile grid 90 degrees to VERTICAL (portrait) orientation if the blueprint shows horizontal tiles."
+        wall_orient_note = (
+            " Follow the exact VERTICAL (portrait) grid shown in the blueprint."
             if wall_orientation == "vertical"
-            else " Keep the tile grid in HORIZONTAL (landscape) orientation."
+            else " Follow the exact HORIZONTAL (landscape) grid shown in the blueprint."
         )
         grid_ref_lines.append(
-            f"- Wall Grid & Scale Blueprint: Use {wall_grid_ref} STRICTLY as the tile size, aspect ratio, grid density, and grout-spacing reference for the walls ({wall_size_lable}).{wall_rotate_note} Do NOT copy its room, furniture, or tile color — ONLY copy its tile grid scale and proportions."
+            f"- Wall Grid & Scale Blueprint: Use {wall_grid_ref} STRICTLY as the tile size, aspect ratio, grid density, and grout-spacing reference for the walls ({wall_size_lable}).{wall_orient_note}"
         )
     grid_ref_block = ("\n" + "\n".join(grid_ref_lines)) if grid_ref_lines else ""
 
@@ -392,28 +397,7 @@ def generate_prompt():
             "seventh image",
         ]
 
-        def save_optional_image(field_name):
-            if field_name not in request.files:
-                return None
-            file_obj = request.files[field_name]
-            if not file_obj or file_obj.filename == '' or not allowed_file(file_obj.filename):
-                return None
-            safe_name = secure_filename(file_obj.filename)
-            unique_name = f"{uuid.uuid4().hex}_{safe_name}"
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_name)
-            file_obj.save(filepath)
-            uploaded_files.append(filepath)
-            idx = len(images_for_gemini)
-            images_for_gemini.append(Image.open(filepath))
-            return ordinal_names[idx]
-
-        first_img = "first image"
-        second_img = save_optional_image('floor_tile_image')
-        third_img = save_optional_image('wall_tile_image_1')
-        forth_img = save_optional_image('wall_tile_image_2')
-        fifth_img = save_optional_image('wall_tile_image_3')
-
-        # Get form parameters
+        # Get form parameters first so swatch sheets & blueprints match requested size/orientation
         floor_size_lable = request.form.get('floor_size_lable', '600x1200 mm')
         wall_size_lable = request.form.get('wall_size_lable', '600x1200 mm')
         floor_finish = request.form.get('floor_finish')
@@ -429,6 +413,9 @@ def generate_prompt():
         sync_grout = request.form.get('sync_grout', 'false').lower() in ('true', '1', 'yes', 'on')
         scene = request.form.get('scene', 'living room')
 
+        effective_floor_grout = (floor_grout_color or wall_grout_color) if sync_grout else floor_grout_color
+        effective_wall_grout = (floor_grout_color or wall_grout_color) if sync_grout else wall_grout_color
+
         # Validate finish values
         valid_finishes = ['matt', 'glossy', 'high glossy', None]
         if floor_finish and floor_finish not in valid_finishes:
@@ -442,6 +429,34 @@ def generate_prompt():
                 'error': 'Invalid wall_finish',
                 'message': 'Allowed values: matt, glossy, high glossy'
             }), 400
+
+        def save_optional_swatch(field_name, size_str, orientation_mode, grout_color):
+            if field_name not in request.files:
+                return None
+            file_obj = request.files[field_name]
+            if not file_obj or file_obj.filename == '' or not allowed_file(file_obj.filename):
+                return None
+            safe_name = secure_filename(file_obj.filename)
+            unique_name = f"{uuid.uuid4().hex}_{safe_name}"
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_name)
+            file_obj.save(filepath)
+            uploaded_files.append(filepath)
+            idx = len(images_for_gemini)
+            raw_tile = Image.open(filepath)
+            swatch_sheet = build_tiled_swatch_sheet(
+                raw_tile,
+                size_input=size_str,
+                orientation_mode=orientation_mode,
+                grout_color=grout_color,
+            )
+            images_for_gemini.append(swatch_sheet)
+            return ordinal_names[idx]
+
+        first_img = "first image"
+        second_img = save_optional_swatch('floor_tile_image', floor_size_lable, floor_orientation, effective_floor_grout)
+        third_img = save_optional_swatch('wall_tile_image_1', wall_size_lable, wall_orientation, effective_wall_grout)
+        forth_img = save_optional_swatch('wall_tile_image_2', wall_size_lable, wall_orientation, effective_wall_grout)
+        fifth_img = save_optional_swatch('wall_tile_image_3', wall_size_lable, wall_orientation, effective_wall_grout)
         
         # Analyze tile sizes against Models/tile_size_model.pkl (orientation-aware)
         floor_size_info = analyze_tile_size(floor_size_lable, orientation_mode=floor_orientation)
@@ -469,27 +484,22 @@ def generate_prompt():
         }
         print("=== /generate-prompt PAYLOAD ===", payload_debug, flush=True)
 
-        # Attach visual room-grid reference images from "Tile apply according to sized/"
-        grid_ref_cache = {}
-
-        def attach_grid_ref(size_str):
-            loaded = load_grid_reference_image(size_str)
-            if not loaded:
-                return None
-            ref_img, ref_name = loaded
-            if ref_name in grid_ref_cache:
-                return grid_ref_cache[ref_name]
+        # Attach clean, orientation-locked visual grid blueprints (floor perspective & wall frontal)
+        def attach_blueprint(size_str, surface, orientation_mode):
             idx = len(images_for_gemini)
             if idx >= len(ordinal_names):
                 return None
-            images_for_gemini.append(ref_img)
-            ordinal = ordinal_names[idx]
-            grid_ref_cache[ref_name] = ordinal
-            return ordinal
+            bp_img = generate_grid_blueprint(
+                size_input=size_str,
+                surface=surface,
+                orientation_mode=orientation_mode,
+            )
+            images_for_gemini.append(bp_img)
+            return ordinal_names[idx]
 
-        floor_grid_ref = attach_grid_ref(floor_size_lable) if second_img else None
+        floor_grid_ref = attach_blueprint(floor_size_lable, "floor", floor_orientation) if second_img else None
         wall_grid_ref = (
-            attach_grid_ref(wall_size_lable)
+            attach_blueprint(wall_size_lable, "wall", wall_orientation)
             if (third_img or forth_img or fifth_img)
             else None
         )
