@@ -63,6 +63,8 @@ def generate_interior_prompt(
     wall_grout_color: str = None,
     floor_orientation: str = "horizontal",
     wall_orientation: str = "horizontal",
+    floor_pattern: str = "grid",
+    wall_pattern: str = "grid",
     sync_grout: bool = False,
     floor_count_check: str = None,
     wall_count_check: str = None,
@@ -82,11 +84,20 @@ def generate_interior_prompt(
         else "Lay wall tiles VERTICALLY (portrait orientation: long edge vertical top-to-bottom, short edge horizontal left-to-right)."
     )
 
+    pattern_map = {
+        "grid": "Lay tiles in a straight STACKED GRID pattern with aligned horizontal and vertical joints.",
+        "brick": "Lay tiles in a BRICK / RUNNING BOND pattern with a 50% staggered offset on alternating rows.",
+        "herringbone": "Lay tiles in an interlocking HERRINGBONE zig-zag pattern at 90-degree alternating angles.",
+        "diagonal": "Lay tiles in a 45-DEGREE DIAGONAL diamond pattern.",
+    }
+    floor_pattern_rule = pattern_map.get(floor_pattern, pattern_map["grid"])
+    wall_pattern_rule = pattern_map.get(wall_pattern, pattern_map["grid"])
+
     # --- Floor ---
     if floor_tile_image and floor_finish:
         floor_instruction = (
             f"Replace the floor surface with the tile pattern from {floor_tile_image}. "
-            f"Tile size: {floor_size_lable}. Finish: {floor_finish}. {floor_orient_rule} "
+            f"Tile size: {floor_size_lable}. Finish: {floor_finish}. {floor_orient_rule} {floor_pattern_rule} "
             f"Render the floor tiles in true architectural perspective with crisp, evenly spaced grid joints matching {floor_size_lable} — "
             f"do NOT render oversized slabs or square tiles when {floor_size_lable} is rectangular. "
             f"Preserve the tile's original color and pattern exactly. "
@@ -112,7 +123,7 @@ def generate_interior_prompt(
         )
         wall_instruction = (
             " ".join(wall_assignments)
-            + f" All tiled walls use tile size {wall_size_lable} and {wall_finish} finish. {wall_orient_rule} "
+            + f" All tiled walls use tile size {wall_size_lable} and {wall_finish} finish. {wall_orient_rule} {wall_pattern_rule} "
             + "Preserve each tile's original color and pattern exactly. "
             + untiled_note
         ).strip()
@@ -262,13 +273,14 @@ TILE & GROUT LOCK (ABSOLUTE — NO MODIFICATION ALLOWED):
     return prompt
 
 
-def generate_image_with_gemini(prompt, images):
+def generate_image_with_gemini(prompt, images, aspect_ratio="4:3"):
     """
     Generate image using Google Gemini
     
     Args:
         prompt: Text prompt for image generation
         images: List of PIL Image objects
+        aspect_ratio: Output image aspect ratio ("4:3", "16:9", "1:1", "3:4")
     
     Returns:
         Tuple of (success, generated_image_path or error_message)
@@ -285,7 +297,7 @@ def generate_image_with_gemini(prompt, images):
             contents=contents,
             config=types.GenerateContentConfig(response_modalities=['Image'],
                                                temperature = 1,
-                                               image_config=types.ImageConfig(aspect_ratio="4:3")))
+                                               image_config=types.ImageConfig(aspect_ratio=aspect_ratio)))
 
         # Process response
         for part in response.parts:
@@ -404,12 +416,23 @@ def generate_prompt():
         wall_finish = request.form.get('wall_finish')
         floor_grout_color = request.form.get('floor_grout_color') or None
         wall_grout_color = request.form.get('wall_grout_color') or None
+        floor_grout_width = request.form.get('floor_grout_width', '2 mm') or '2 mm'
+        wall_grout_width = request.form.get('wall_grout_width', '2 mm') or '2 mm'
         floor_orientation = request.form.get('floor_orientation', 'horizontal')
         wall_orientation = request.form.get('wall_orientation', 'horizontal')
+        floor_pattern = request.form.get('floor_pattern', 'grid')
+        wall_pattern = request.form.get('wall_pattern', 'grid')
+        aspect_ratio = request.form.get('aspect_ratio', '4:3')
         if floor_orientation not in ('horizontal', 'vertical'):
             floor_orientation = 'horizontal'
         if wall_orientation not in ('horizontal', 'vertical'):
             wall_orientation = 'horizontal'
+        if floor_pattern not in ('grid', 'brick', 'herringbone', 'diagonal'):
+            floor_pattern = 'grid'
+        if wall_pattern not in ('grid', 'brick', 'herringbone', 'diagonal'):
+            wall_pattern = 'grid'
+        if aspect_ratio not in ('4:3', '16:9', '1:1', '3:4'):
+            aspect_ratio = '4:3'
         sync_grout = request.form.get('sync_grout', 'false').lower() in ('true', '1', 'yes', 'on')
         scene = request.form.get('scene', 'living room')
 
@@ -430,7 +453,7 @@ def generate_prompt():
                 'message': 'Allowed values: matt, glossy, high glossy'
             }), 400
 
-        def save_optional_swatch(field_name, size_str, orientation_mode, grout_color):
+        def save_optional_swatch(field_name, size_str, orientation_mode, grout_color, pattern_mode):
             if field_name not in request.files:
                 return None
             file_obj = request.files[field_name]
@@ -448,15 +471,16 @@ def generate_prompt():
                 size_input=size_str,
                 orientation_mode=orientation_mode,
                 grout_color=grout_color,
+                pattern=pattern_mode,
             )
             images_for_gemini.append(swatch_sheet)
             return ordinal_names[idx]
 
         first_img = "first image"
-        second_img = save_optional_swatch('floor_tile_image', floor_size_lable, floor_orientation, effective_floor_grout)
-        third_img = save_optional_swatch('wall_tile_image_1', wall_size_lable, wall_orientation, effective_wall_grout)
-        forth_img = save_optional_swatch('wall_tile_image_2', wall_size_lable, wall_orientation, effective_wall_grout)
-        fifth_img = save_optional_swatch('wall_tile_image_3', wall_size_lable, wall_orientation, effective_wall_grout)
+        second_img = save_optional_swatch('floor_tile_image', floor_size_lable, floor_orientation, effective_floor_grout, floor_pattern)
+        third_img = save_optional_swatch('wall_tile_image_1', wall_size_lable, wall_orientation, effective_wall_grout, wall_pattern)
+        forth_img = save_optional_swatch('wall_tile_image_2', wall_size_lable, wall_orientation, effective_wall_grout, wall_pattern)
+        fifth_img = save_optional_swatch('wall_tile_image_3', wall_size_lable, wall_orientation, effective_wall_grout, wall_pattern)
         
         # Analyze tile sizes against Models/tile_size_model.pkl (orientation-aware)
         floor_size_info = analyze_tile_size(floor_size_lable, orientation_mode=floor_orientation)
@@ -473,19 +497,24 @@ def generate_prompt():
                 "scene": scene,
                 "floor_size_lable": floor_size_lable,
                 "floor_orientation": floor_orientation,
+                "floor_pattern": floor_pattern,
                 "floor_finish": floor_finish,
+                "floor_grout_width": floor_grout_width,
                 "floor_grout_color": floor_grout_color,
                 "wall_size_lable": wall_size_lable,
                 "wall_orientation": wall_orientation,
+                "wall_pattern": wall_pattern,
                 "wall_finish": wall_finish,
+                "wall_grout_width": wall_grout_width,
                 "wall_grout_color": wall_grout_color,
+                "aspect_ratio": aspect_ratio,
                 "sync_grout": sync_grout,
             },
         }
         print("=== /generate-prompt PAYLOAD ===", payload_debug, flush=True)
 
         # Attach clean, orientation-locked visual grid blueprints (floor perspective & wall frontal)
-        def attach_blueprint(size_str, surface, orientation_mode):
+        def attach_blueprint(size_str, surface, orientation_mode, pattern_mode):
             idx = len(images_for_gemini)
             if idx >= len(ordinal_names):
                 return None
@@ -493,13 +522,14 @@ def generate_prompt():
                 size_input=size_str,
                 surface=surface,
                 orientation_mode=orientation_mode,
+                pattern=pattern_mode,
             )
             images_for_gemini.append(bp_img)
             return ordinal_names[idx]
 
-        floor_grid_ref = attach_blueprint(floor_size_lable, "floor", floor_orientation) if second_img else None
+        floor_grid_ref = attach_blueprint(floor_size_lable, "floor", floor_orientation, floor_pattern) if second_img else None
         wall_grid_ref = (
-            attach_blueprint(wall_size_lable, "wall", wall_orientation)
+            attach_blueprint(wall_size_lable, "wall", wall_orientation, wall_pattern)
             if (third_img or forth_img or fifth_img)
             else None
         )
@@ -515,10 +545,14 @@ def generate_prompt():
             wall_size_lable=wall_size_info['size_label'],
             floor_finish=floor_finish,
             wall_finish=wall_finish,
+            floor_grout_width=floor_grout_width,
+            wall_grout_width=wall_grout_width,
             floor_grout_color=floor_grout_color,
             wall_grout_color=wall_grout_color,
             floor_orientation=floor_orientation,
             wall_orientation=wall_orientation,
+            floor_pattern=floor_pattern,
+            wall_pattern=wall_pattern,
             sync_grout=sync_grout,
             floor_count_check=floor_size_info['count_check'],
             wall_count_check=wall_size_info['count_check'],
@@ -528,7 +562,7 @@ def generate_prompt():
         )
 
         # Generate image with Gemini
-        success, result = generate_image_with_gemini(prompt, images_for_gemini)
+        success, result = generate_image_with_gemini(prompt, images_for_gemini, aspect_ratio=aspect_ratio)
         
         if not success:
             return jsonify({

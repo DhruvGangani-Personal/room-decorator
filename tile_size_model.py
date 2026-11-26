@@ -328,11 +328,12 @@ def build_tiled_swatch_sheet(
     size_input: str,
     orientation_mode: str = "horizontal",
     grout_color: Optional[str] = None,
+    pattern: str = "grid",
     sheet_size: int = 768,
 ) -> Image.Image:
     """
     Build a multi-tile grid sheet from a single uploaded tile swatch so Gemini
-    directly observes the exact aspect ratio, orientation, and grout lines.
+    directly observes the exact aspect ratio, orientation, laying pattern, and grout lines.
     """
     info = analyze_tile_size(size_input, orientation_mode=orientation_mode)
     if info.get("valid"):
@@ -360,14 +361,12 @@ def build_tiled_swatch_sheet(
     grout_px = 6
 
     tile_rgb = tile_img.convert("RGB")
-    # Rotate swatch 90 deg if its natural aspect opposes the requested orientation
     tw, th = tile_rgb.size
     if eff_w > eff_h and th > tw:
         tile_rgb = tile_rgb.rotate(90, expand=True)
     elif eff_h > eff_w and tw > th:
         tile_rgb = tile_rgb.rotate(90, expand=True)
 
-    # Compute cell pixel dimensions preserving exact eff_w : eff_h ratio
     total_w_units = cols * eff_w
     total_h_units = rows * eff_h
     scale = min(
@@ -383,11 +382,43 @@ def build_tiled_swatch_sheet(
 
     fitted_tile = ImageOps.fit(tile_rgb, (cell_w, cell_h), method=Image.Resampling.LANCZOS)
 
-    for r in range(rows):
-        for c in range(cols):
-            x = grout_px + c * (cell_w + grout_px)
-            y = grout_px + r * (cell_h + grout_px)
-            sheet.paste(fitted_tile, (x, y))
+    if pattern == "brick":
+        for r in range(rows):
+            offset = (cell_w // 2) if (r % 2 == 1) else 0
+            for c in range(-1, cols + 1):
+                x = grout_px + c * (cell_w + grout_px) + offset
+                y = grout_px + r * (cell_h + grout_px)
+                sheet.paste(fitted_tile, (x, y))
+    elif pattern == "diagonal":
+        big = Image.new("RGB", (canvas_w * 2, canvas_h * 2), grout_rgb)
+        for r in range(rows * 3):
+            for c in range(cols * 3):
+                x = grout_px + c * (cell_w + grout_px)
+                y = grout_px + r * (cell_h + grout_px)
+                if x < big.width and y < big.height:
+                    big.paste(fitted_tile, (x, y))
+        rotated = big.rotate(45, resample=Image.Resampling.BICUBIC)
+        cx, cy = rotated.width // 2, rotated.height // 2
+        sheet = rotated.crop((cx - canvas_w // 2, cy - canvas_h // 2, cx + canvas_w // 2, cy + canvas_h // 2))
+    elif pattern == "herringbone":
+        # Interlocking 90-degree alternating plank blocks
+        tile_rot = fitted_tile.rotate(90, expand=True)
+        step = max(32, min(cell_w, cell_h))
+        for r in range(rows * 2):
+            for c in range(cols * 2):
+                x = grout_px + c * (step + grout_px)
+                y = grout_px + r * (step + grout_px)
+                if x >= canvas_w or y >= canvas_h:
+                    continue
+                patch = fitted_tile if ((r + c) % 2 == 0) else tile_rot
+                patch_fit = ImageOps.fit(patch, (step, step), method=Image.Resampling.LANCZOS)
+                sheet.paste(patch_fit, (x, y))
+    else:
+        for r in range(rows):
+            for c in range(cols):
+                x = grout_px + c * (cell_w + grout_px)
+                y = grout_px + r * (cell_h + grout_px)
+                sheet.paste(fitted_tile, (x, y))
 
     return sheet
 
@@ -396,12 +427,13 @@ def generate_grid_blueprint(
     size_input: str,
     surface: str = "floor",
     orientation_mode: str = "horizontal",
+    pattern: str = "grid",
     width: int = 768,
     height: int = 576,
 ) -> Image.Image:
     """
     Generate a clean, furniture-free grid blueprint image showing exact tile
-    aspect ratio, orientation, and density on a floor (perspective) or wall (frontal).
+    aspect ratio, orientation, laying pattern, and density on a floor or wall.
     """
     info = analyze_tile_size(size_input, orientation_mode=orientation_mode)
     if info.get("valid"):
@@ -420,47 +452,69 @@ def generate_grid_blueprint(
     draw = ImageDraw.Draw(canvas)
     line_color = (30, 30, 30)
 
-    # Assume a ~4.2m wide x ~3.0m tall/deep reference span
     cols = max(2.0, min(14.0, 4200.0 / eff_w))
     rows = max(2.0, min(14.0, 3000.0 / eff_h))
+    num_cols = int(round(cols))
+    num_rows = int(round(rows))
 
     if surface == "floor":
-        # Draw 1-point perspective floor trapezoid in lower 65% of frame
         horizon_y = int(height * 0.36)
         bottom_y = height - 12
         vp_x = width // 2
         vp_y = int(height * 0.12)
 
-        # Horizontal depth lines (foreshortened in perspective)
-        num_rows = int(round(rows))
-        for i in range(num_rows + 1):
-            t = i / num_rows
-            # Perspective foreshortening curve
-            t_persp = (t ** 1.65)
-            y = int(horizon_y + t_persp * (bottom_y - horizon_y))
+        row_ys = [
+            int(horizon_y + ((i / num_rows) ** 1.65) * (bottom_y - horizon_y))
+            for i in range(num_rows + 1)
+        ]
+        for y in row_ys:
             draw.line([(0, y), (width, y)], fill=line_color, width=2)
 
-        # Vertical / radial perspective lines converging toward vanishing point
-        num_cols = int(round(cols))
         margin = int(width * 0.35)
-        for j in range(-2, num_cols + 3):
-            bx = int(-margin + (j / num_cols) * (width + 2 * margin))
-            # Intersect ray from (vp_x, vp_y) through (bx, bottom_y) with y = horizon_y
-            if bottom_y != vp_y:
+        if pattern == "brick":
+            # Staggered vertical joints per row
+            for r in range(num_rows):
+                y0, y1 = row_ys[r], row_ys[r + 1]
+                stagger = 0.5 / num_cols if (r % 2 == 1) else 0.0
+                for j in range(-2, num_cols + 3):
+                    bx = int(-margin + ((j / num_cols) + stagger) * (width + 2 * margin))
+                    hx = int(vp_x + (bx - vp_x) * ((horizon_y - vp_y) / (bottom_y - vp_y)))
+                    x0 = int(hx + (bx - hx) * ((y0 - horizon_y) / (bottom_y - horizon_y)))
+                    x1 = int(hx + (bx - hx) * ((y1 - horizon_y) / (bottom_y - horizon_y)))
+                    draw.line([(x0, y0), (x1, y1)], fill=line_color, width=2)
+        elif pattern == "diagonal":
+            for j in range(-num_cols, num_cols * 2 + 1):
+                x_top = int((j / num_cols) * width)
+                draw.line([(x_top, horizon_y), (x_top - width // 2, bottom_y)], fill=line_color, width=2)
+                draw.line([(x_top, horizon_y), (x_top + width // 2, bottom_y)], fill=line_color, width=2)
+        else:
+            for j in range(-2, num_cols + 3):
+                bx = int(-margin + (j / num_cols) * (width + 2 * margin))
                 hx = int(vp_x + (bx - vp_x) * ((horizon_y - vp_y) / (bottom_y - vp_y)))
-            else:
-                hx = bx
-            draw.line([(hx, horizon_y), (bx, bottom_y)], fill=line_color, width=2)
+                draw.line([(hx, horizon_y), (bx, bottom_y)], fill=line_color, width=2)
     else:
-        # Frontal wall grid
-        num_cols = int(round(cols))
-        num_rows = int(round(rows))
-        for c in range(num_cols + 1):
-            x = int(c * (width / num_cols))
-            draw.line([(x, 0), (x, height)], fill=line_color, width=2)
-        for r in range(num_rows + 1):
-            y = int(r * (height / num_rows))
+        row_ys = [int(r * (height / num_rows)) for r in range(num_rows + 1)]
+        for y in row_ys:
             draw.line([(0, y), (width, y)], fill=line_color, width=2)
+
+        if pattern == "brick":
+            col_w = width / num_cols
+            for r in range(num_rows):
+                y0, y1 = row_ys[r], row_ys[r + 1]
+                offset = col_w * 0.5 if (r % 2 == 1) else 0.0
+                for c in range(num_cols + 2):
+                    x = int(c * col_w - offset)
+                    if 0 <= x <= width:
+                        draw.line([(x, y0), (x, y1)], fill=line_color, width=2)
+        elif pattern == "diagonal":
+            for k in range(-num_cols, num_cols * 2 + 1):
+                x0 = int((k / num_cols) * width)
+                draw.line([(x0, 0), (x0 - height, height)], fill=line_color, width=2)
+                draw.line([(x0, 0), (x0 + height, height)], fill=line_color, width=2)
+        else:
+            for c in range(num_cols + 1):
+                x = int(c * (width / num_cols))
+                draw.line([(x, 0), (x, height)], fill=line_color, width=2)
 
     return canvas
 

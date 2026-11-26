@@ -1,6 +1,7 @@
 # BRAIN.md — System Design & Engineering Notes
 
 ## Concept & Evolution
+
 Atelier Tile treats the uploaded room photograph (`main_image`) as an **immutable scene** and performs **in-place tile surface replacement only** on the specified floor and/or walls — keeping all existing furniture, decor, ceiling, windows, lighting, camera perspective, and architectural openings unchanged.
 
 ### Key Architectural Decisions
@@ -18,7 +19,8 @@ Atelier Tile treats the uploaded room photograph (`main_image`) as an **immutabl
    - Based on luminance (`> 0.68` light, `< 0.35` dark, or mid-tone) and warmth (`r >= b`), `buildRecommendedGroutSwatches()` generates 4 tailored grout options (tonal match, soft contrast, deep contrast, and warm/cool neutral).
    - Users can pick **Auto**, one of the 4 **tile-matched swatches**, or any **Custom** hex color via `<input type="color">`.
    - **Wall-to-Floor Grout Grid Alignment** is always enforced whenever both floor and wall tiles are provided, connecting vertical wall grout joints directly into the floor grout lines at the wall-to-floor junction.
-   - **Tile Orientation (`floor_orientation` / `wall_orientation`)**: Defaults to `"horizontal"` (landscape) with a UI segmented toggle to switch between **Horizontal** and **Vertical** layout independently for floor and walls. `analyze_tile_size()` swaps effective width/height per orientation so 1-meter tile counts and grid blueprint rotation instructions match the chosen orientation.
+   - **Tile Orientation, Pattern, Grout Width & Aspect Ratio**: Supports `horizontal`/`vertical` orientation, `grid`/`brick`/`herringbone`/`diagonal` laying patterns, `1 mm`–`5 mm` grout widths, and `4:3`/`16:9`/`1:1`/`3:4` output aspect ratios.
+   - **Tile Area & Box Calculator**: Client-side estimator in the sidebar computing total area ($m^2$), tile count (+10% wastage), and estimated boxes from the selected `mm` tile size.
    - The **Sync with Floor** (`sync_grout`) toggle additionally mirrors the selected grout color across both wall and floor.
 
 4. **Tile Size & Aspect-Ratio `.pkl` Model (`tile_size_model.py`)**
@@ -31,6 +33,7 @@ Atelier Tile treats the uploaded room photograph (`main_image`) as an **immutabl
    - Note: `client.models.list()` is not supported with API-key auth on Vertex AI (returns 401), whereas `client.models.generate_content()` works directly.
 
 ## Future Ideas
+
 - Persist generated renders and metadata in a lightweight SQLite gallery (`GET /api/history`).
 - Add grout width controls (`1 mm`, `2 mm`, `3 mm`, `5 mm`) in the UI wired to `floor_grout_width` and `wall_grout_width`.
 - Add aspect-ratio selector (`4:3`, `16:9`, `1:1`, `3:4`) wired to `types.ImageConfig`.

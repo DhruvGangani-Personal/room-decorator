@@ -54,7 +54,7 @@
               <p class="section-hint">Upload the room photo or unfinished space to preserve its exact layout &amp; camera angle.</p>
 
               <div class="dropzone dropzone-main" data-input="main_image">
-                <input type="file" id="main_image" name="main_image" accept=".png,.jpg,.jpeg,.webp" hidden />
+                <input type="file" id="main_image" name="main_image" accept=".png,.jpg,.jpeg,.webp" aria-label="Room reference image" hidden />
                 <div class="dropzone-empty">
                   <div class="upload-icon">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -89,7 +89,7 @@
                 <button type="button" class="chip" data-value="hallway">Hallway</button>
                 <button type="button" class="chip" data-value="commercial lobby">Lobby</button>
               </div>
-              <input type="text" id="scene" name="scene" class="text-input" value="living room" placeholder="e.g. modern living room, spa bathroom" />
+              <input type="text" id="scene" name="scene" class="text-input" value="living room" aria-label="Scene and space" placeholder="e.g. modern living room, spa bathroom" />
             </section>
 
             <!-- 3. Floor Tile -->
@@ -100,7 +100,7 @@
               </div>
 
               <div class="dropzone dropzone-compact" data-input="floor_tile_image">
-                <input type="file" id="floor_tile_image" name="floor_tile_image" accept=".png,.jpg,.jpeg,.webp" hidden />
+                <input type="file" id="floor_tile_image" name="floor_tile_image" accept=".png,.jpg,.jpeg,.webp" aria-label="Floor tile image" hidden />
                 <div class="dropzone-empty">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
                     <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -145,6 +145,28 @@
               </div>
 
               <div class="field-group">
+                <label>Floor Laying Pattern</label>
+                <div class="segmented-control" data-name="floor_pattern">
+                  <button type="button" class="seg-btn active" data-value="grid">Grid</button>
+                  <button type="button" class="seg-btn" data-value="brick">Brick</button>
+                  <button type="button" class="seg-btn" data-value="herringbone">Herringbone</button>
+                  <button type="button" class="seg-btn" data-value="diagonal">Diagonal</button>
+                </div>
+                <input type="hidden" id="floor_pattern" name="floor_pattern" value="grid" />
+              </div>
+
+              <div class="field-group">
+                <label>Floor Grout Width</label>
+                <div class="segmented-control" data-name="floor_grout_width">
+                  <button type="button" class="seg-btn" data-value="1 mm">1 mm</button>
+                  <button type="button" class="seg-btn active" data-value="2 mm">2 mm</button>
+                  <button type="button" class="seg-btn" data-value="3 mm">3 mm</button>
+                  <button type="button" class="seg-btn" data-value="5 mm">5 mm</button>
+                </div>
+                <input type="hidden" id="floor_grout_width" name="floor_grout_width" value="2 mm" />
+              </div>
+
+              <div class="field-group">
                 <label>Floor Surface Finish</label>
                 <div class="segmented-control" data-name="floor_finish">
                   <button type="button" class="seg-btn active" data-value="">None</button>
@@ -167,7 +189,7 @@
                   <button type="button" class="grout-auto-btn active" data-value="">Auto</button>
                   <div class="grout-swatches" id="floor-grout-swatches"></div>
                   <label class="grout-custom-btn" title="Custom grout color">
-                    <input type="color" id="floor-grout-native" value="#d8cfc2" />
+                    <input type="color" id="floor-grout-native" value="#d8cfc2" aria-label="Custom floor grout color" />
                     <span class="custom-dot" id="floor-custom-dot"></span>
                     <span>Custom</span>
                   </label>
@@ -187,7 +209,7 @@
 
               <div class="wall-upload-grid wall-upload-grid-3">
                 <div class="dropzone dropzone-tile" data-input="wall_tile_image_1">
-                  <input type="file" id="wall_tile_image_1" name="wall_tile_image_1" accept=".png,.jpg,.jpeg,.webp" hidden />
+                  <input type="file" id="wall_tile_image_1" name="wall_tile_image_1" accept=".png,.jpg,.jpeg,.webp" aria-label="Left wall tile image" hidden />
                   <div class="dropzone-empty">
                     <span class="tile-slot-tag">Left Wall</span>
                     <span class="dropzone-label-sm">Upload tile</span>
@@ -202,7 +224,7 @@
                 </div>
 
                 <div class="dropzone dropzone-tile" data-input="wall_tile_image_3">
-                  <input type="file" id="wall_tile_image_3" name="wall_tile_image_3" accept=".png,.jpg,.jpeg,.webp" hidden />
+                  <input type="file" id="wall_tile_image_3" name="wall_tile_image_3" accept=".png,.jpg,.jpeg,.webp" aria-label="Center wall tile image" hidden />
                   <div class="dropzone-empty">
                     <span class="tile-slot-tag">Center Wall</span>
                     <span class="dropzone-label-sm">Upload tile</span>
@@ -217,7 +239,7 @@
                 </div>
 
                 <div class="dropzone dropzone-tile" data-input="wall_tile_image_2">
-                  <input type="file" id="wall_tile_image_2" name="wall_tile_image_2" accept=".png,.jpg,.jpeg,.webp" hidden />
+                  <input type="file" id="wall_tile_image_2" name="wall_tile_image_2" accept=".png,.jpg,.jpeg,.webp" aria-label="Right wall tile image" hidden />
                   <div class="dropzone-empty">
                     <span class="tile-slot-tag">Right Wall</span>
                     <span class="dropzone-label-sm">Upload tile</span>
@@ -259,6 +281,28 @@
               </div>
 
               <div class="field-group">
+                <label>Wall Laying Pattern</label>
+                <div class="segmented-control" data-name="wall_pattern">
+                  <button type="button" class="seg-btn active" data-value="grid">Grid</button>
+                  <button type="button" class="seg-btn" data-value="brick">Brick</button>
+                  <button type="button" class="seg-btn" data-value="herringbone">Herringbone</button>
+                  <button type="button" class="seg-btn" data-value="diagonal">Diagonal</button>
+                </div>
+                <input type="hidden" id="wall_pattern" name="wall_pattern" value="grid" />
+              </div>
+
+              <div class="field-group">
+                <label>Wall Grout Width</label>
+                <div class="segmented-control" data-name="wall_grout_width">
+                  <button type="button" class="seg-btn" data-value="1 mm">1 mm</button>
+                  <button type="button" class="seg-btn active" data-value="2 mm">2 mm</button>
+                  <button type="button" class="seg-btn" data-value="3 mm">3 mm</button>
+                  <button type="button" class="seg-btn" data-value="5 mm">5 mm</button>
+                </div>
+                <input type="hidden" id="wall_grout_width" name="wall_grout_width" value="2 mm" />
+              </div>
+
+              <div class="field-group">
                 <label>Wall Surface Finish</label>
                 <div class="segmented-control" data-name="wall_finish">
                   <button type="button" class="seg-btn active" data-value="">None</button>
@@ -288,13 +332,63 @@
                   <button type="button" class="grout-auto-btn active" data-value="">Auto</button>
                   <div class="grout-swatches" id="wall-grout-swatches"></div>
                   <label class="grout-custom-btn" title="Custom grout color">
-                    <input type="color" id="wall-grout-native" value="#8e7968" />
+                    <input type="color" id="wall-grout-native" value="#8e7968" aria-label="Custom wall grout color" />
                     <span class="custom-dot" id="wall-custom-dot"></span>
                     <span>Custom</span>
                   </label>
                 </div>
                 <input type="hidden" id="wall_grout_color" name="wall_grout_color" value="" />
                 <div class="grout-selected-label" id="wall-grout-label">Auto (contrasting grout)</div>
+              </div>
+            </section>
+
+            <!-- 5. Output & Tile Box Calculator -->
+            <section class="control-section">
+              <div class="section-header">
+                <h2>5. Output &amp; Tile Calculator</h2>
+              </div>
+
+              <div class="field-group">
+                <label>Output Aspect Ratio</label>
+                <div class="segmented-control" data-name="aspect_ratio">
+                  <button type="button" class="seg-btn active" data-value="4:3">4:3</button>
+                  <button type="button" class="seg-btn" data-value="16:9">16:9</button>
+                  <button type="button" class="seg-btn" data-value="1:1">1:1</button>
+                  <button type="button" class="seg-btn" data-value="3:4">3:4</button>
+                </div>
+                <input type="hidden" id="aspect_ratio" name="aspect_ratio" value="4:3" />
+              </div>
+
+              <div class="calc-card">
+                <div class="calc-header">
+                  <span>Area &amp; Box Estimator</span>
+                  <div class="calc-unit-toggle">
+                    <button type="button" class="calc-unit active" data-unit="ft">ft</button>
+                    <button type="button" class="calc-unit" data-unit="m">m</button>
+                  </div>
+                </div>
+                <div class="calc-grid">
+                  <div class="calc-field">
+                    <label for="calc-surface">Surface</label>
+                    <select id="calc-surface" class="text-input">
+                      <option value="floor">Floor Size</option>
+                      <option value="wall">Wall Size</option>
+                    </select>
+                  </div>
+                  <div class="calc-field">
+                    <label for="calc-box">Tiles / Box</label>
+                    <input type="number" id="calc-box" class="text-input" value="2" min="1" max="50" />
+                  </div>
+                  <div class="calc-field">
+                    <label for="calc-len">Length (<span class="unit-lbl">ft</span>)</label>
+                    <input type="number" id="calc-len" class="text-input" value="14" min="1" step="0.5" />
+                  </div>
+                  <div class="calc-field">
+                    <label for="calc-wid">Width / Ht (<span class="unit-lbl">ft</span>)</label>
+                    <input type="number" id="calc-wid" class="text-input" value="12" min="1" step="0.5" />
+                  </div>
+                </div>
+                <div class="calc-results" id="calc-results"></div>
               </div>
             </section>
           </div>

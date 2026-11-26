@@ -65,5 +65,8 @@ AiPhotoGenerated/
   - `floor_size_lable` / `wall_size_lable` (string, optional, default: `"600x1200 mm"`): Tile dimensions.
   - `floor_finish` / `wall_finish` (string, optional): `"matt"`, `"glossy"`, or `"high glossy"`.
   - `floor_orientation` / `wall_orientation` (string, optional, default `"horizontal"`): `"horizontal"` or `"vertical"`.
+  - `floor_pattern` / `wall_pattern` (string, optional, default `"grid"`): `"grid"`, `"brick"`, `"herringbone"`, or `"diagonal"`.
+  - `floor_grout_width` / `wall_grout_width` (string, optional, default `"2 mm"`): `"1 mm"`, `"2 mm"`, `"3 mm"`, or `"5 mm"`.
+  - `aspect_ratio` (string, optional, default `"4:3"`): `"4:3"`, `"16:9"`, `"1:1"`, or `"3:4"`.
   - `floor_grout_color` / `wall_grout_color` (string, optional): Explicit grout color name/hex, or omitted for auto-contrast.
   - `sync_grout` (string/boolean, optional, default `"false"`): When `"true"`, unifies floor & wall grout color and aligns floor grout lines directly with wall grout joints.

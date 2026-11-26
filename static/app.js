@@ -167,8 +167,8 @@
       group.querySelectorAll('.chip').forEach((c) => c.classList.remove('active'));
       chip.classList.add('active');
       targetInput.value = chip.dataset.value;
-      if (targetId === 'floor_size_lable') updateSizeAnalysis('floor', targetInput.value);
-      if (targetId === 'wall_size_lable') updateSizeAnalysis('wall', targetInput.value);
+      if (targetId === 'floor_size_lable') { updateSizeAnalysis('floor', targetInput.value); updateCalculator(); }
+      if (targetId === 'wall_size_lable') { updateSizeAnalysis('wall', targetInput.value); updateCalculator(); }
     });
 
     targetInput.addEventListener('input', () => {
@@ -176,8 +176,8 @@
       group.querySelectorAll('.chip').forEach((c) => {
         c.classList.toggle('active', c.dataset.value.toLowerCase() === val);
       });
-      if (targetId === 'floor_size_lable') updateSizeAnalysis('floor', targetInput.value);
-      if (targetId === 'wall_size_lable') updateSizeAnalysis('wall', targetInput.value);
+      if (targetId === 'floor_size_lable') { updateSizeAnalysis('floor', targetInput.value); updateCalculator(); }
+      if (targetId === 'wall_size_lable') { updateSizeAnalysis('wall', targetInput.value); updateCalculator(); }
     });
   });
 
@@ -422,6 +422,14 @@
         const label = chosen ? `${chosen} (Synced)` : 'Auto (Synced wall & floor)';
         setGroutSelection('floor', chosen, label, chosen ? 'custom' : 'auto', null, true);
         setGroutSelection('wall', chosen, label, chosen ? 'custom' : 'auto', null, true);
+      } else {
+        ['floor', 'wall'].forEach((prefix) => {
+          const val = document.getElementById(`${prefix}_grout_color`).value;
+          const labelEl = document.getElementById(`${prefix}-grout-label`);
+          if (labelEl) {
+            labelEl.textContent = val || 'Auto (contrasting grout)';
+          }
+        });
       }
     });
   }
@@ -615,6 +623,11 @@
 
     formData.append('floor_orientation', document.getElementById('floor_orientation').value || 'horizontal');
     formData.append('wall_orientation', document.getElementById('wall_orientation').value || 'horizontal');
+    formData.append('floor_pattern', document.getElementById('floor_pattern').value || 'grid');
+    formData.append('wall_pattern', document.getElementById('wall_pattern').value || 'grid');
+    formData.append('floor_grout_width', document.getElementById('floor_grout_width').value || '2 mm');
+    formData.append('wall_grout_width', document.getElementById('wall_grout_width').value || '2 mm');
+    formData.append('aspect_ratio', document.getElementById('aspect_ratio').value || '4:3');
 
     const floorGroutColor = document.getElementById('floor_grout_color').value;
     if (floorGroutColor) formData.append('floor_grout_color', floorGroutColor);
@@ -685,11 +698,71 @@
     setSegmentedValue('wall_finish', '');
     setSegmentedValue('floor_orientation', 'horizontal');
     setSegmentedValue('wall_orientation', 'horizontal');
+    setSegmentedValue('floor_pattern', 'grid');
+    setSegmentedValue('wall_pattern', 'grid');
+    setSegmentedValue('floor_grout_width', '2 mm');
+    setSegmentedValue('wall_grout_width', '2 mm');
+    setSegmentedValue('aspect_ratio', '4:3');
     setGroutSelection('floor', '', 'Auto (contrasting grout)', 'auto', null, true);
     setGroutSelection('wall', '', 'Auto (contrasting grout)', 'auto', null, true);
     const syncGrout = document.getElementById('sync_grout');
     if (syncGrout) syncGrout.checked = false;
     resetTileTone('floor');
     resetTileTone('wall');
+    updateCalculator();
   });
+
+  // 11. Tile Area & Box Calculator
+  let calcUnit = 'ft';
+  const calcSurface = document.getElementById('calc-surface');
+  const calcLen = document.getElementById('calc-len');
+  const calcWid = document.getElementById('calc-wid');
+  const calcBox = document.getElementById('calc-box');
+  const calcResults = document.getElementById('calc-results');
+
+  function parseMmPair(str) {
+    const m = (str || '').match(/(\d+)\s*[xX×]\s*(\d+)/);
+    return m ? [parseInt(m[1], 10), parseInt(m[2], 10)] : [600, 1200];
+  }
+
+  function updateCalculator() {
+    if (!calcResults) return;
+    const len = parseFloat(calcLen.value) || 0;
+    const wid = parseFloat(calcWid.value) || 0;
+    const perBox = Math.max(1, parseInt(calcBox.value, 10) || 1);
+    const areaSqM = calcUnit === 'ft' ? len * wid * 0.092903 : len * wid;
+    const sizeStr =
+      calcSurface.value === 'wall'
+        ? document.getElementById('wall_size_lable').value
+        : document.getElementById('floor_size_lable').value;
+    const [wMm, hMm] = parseMmPair(sizeStr);
+    const tileAreaSqM = (wMm / 1000) * (hMm / 1000);
+    const exactTiles = tileAreaSqM > 0 ? Math.ceil(areaSqM / tileAreaSqM) : 0;
+    const withWastage = Math.ceil(exactTiles * 1.1);
+    const boxes = Math.ceil(withWastage / perBox);
+
+    calcResults.innerHTML = `
+      <div class="calc-stat"><strong>${areaSqM.toFixed(1)} m²</strong><span>Area</span></div>
+      <div class="calc-stat"><strong>${withWastage}</strong><span>Tiles (+10%)</span></div>
+      <div class="calc-stat"><strong>${boxes}</strong><span>Boxes</span></div>
+    `;
+  }
+
+  document.querySelectorAll('.calc-unit').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      calcUnit = btn.dataset.unit;
+      document.querySelectorAll('.calc-unit').forEach((b) => b.classList.toggle('active', b === btn));
+      document.querySelectorAll('.unit-lbl').forEach((el) => (el.textContent = calcUnit));
+      updateCalculator();
+    });
+  });
+
+  [calcSurface, calcLen, calcWid, calcBox].forEach((el) => {
+    if (el) el.addEventListener('input', updateCalculator);
+  });
+  ['floor_size_lable', 'wall_size_lable'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updateCalculator);
+  });
+  updateCalculator();
 })();
