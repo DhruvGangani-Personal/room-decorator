@@ -446,12 +446,13 @@ def generate_grid_blueprint(
     surface: str = "floor",
     orientation_mode: str = "horizontal",
     pattern: str = "grid",
-    width: int = 768,
-    height: int = 576,
+    width: int = 840,
+    height: int = 600,
 ) -> Image.Image:
     """
     Generate a clean, furniture-free grid blueprint image showing exact tile
     aspect ratio, orientation, laying pattern, and density on a floor or wall.
+    Uses true pinhole 1-point perspective for floors and exact mm proportions for walls.
     """
     info = analyze_tile_size(size_input, orientation_mode=orientation_mode)
     if info.get("valid"):
@@ -470,69 +471,89 @@ def generate_grid_blueprint(
     draw = ImageDraw.Draw(canvas)
     line_color = (30, 30, 30)
 
-    cols = max(2.0, min(14.0, 4200.0 / eff_w))
-    rows = max(2.0, min(14.0, 3000.0 / eff_h))
-    num_cols = int(round(cols))
-    num_rows = int(round(rows))
-
     if surface == "floor":
-        horizon_y = int(height * 0.36)
-        bottom_y = height - 12
+        # True 1-point pinhole perspective projection of a horizontal floor plane
+        # Room width ~4.2 m, visible floor depth ~3.6 m, camera height 1.4 m
+        horizon_y = int(height * 0.38)
+        bottom_y = height - 10
         vp_x = width // 2
-        vp_y = int(height * 0.12)
 
-        row_ys = [
-            int(horizon_y + ((i / num_rows) ** 1.65) * (bottom_y - horizon_y))
-            for i in range(num_rows + 1)
-        ]
+        h_cam = 1.4
+        z_near = 1.2
+        tile_w_m = eff_w / 1000.0
+        tile_d_m = eff_h / 1000.0
+
+        k_y = (bottom_y - horizon_y) * z_near
+        f_x = k_y / h_cam
+
+        num_rows = max(2, min(18, int(round(3.6 / tile_d_m))))
+        num_cols = max(2, min(18, int(round(4.2 / tile_w_m))))
+
+        z_rows = [z_near + i * tile_d_m for i in range(num_rows + 1)]
+        row_ys = [int(round(horizon_y + k_y / z)) for z in z_rows]
+        z_far = z_rows[-1]
+        y_far = row_ys[-1]
+
         for y in row_ys:
             draw.line([(0, y), (width, y)], fill=line_color, width=2)
 
-        margin = int(width * 0.35)
+        half_cols = num_cols + 4
         if pattern == "brick":
-            # Staggered vertical joints per row
             for r in range(num_rows):
                 y0, y1 = row_ys[r], row_ys[r + 1]
-                stagger = 0.5 / num_cols if (r % 2 == 1) else 0.0
-                for j in range(-2, num_cols + 3):
-                    bx = int(-margin + ((j / num_cols) + stagger) * (width + 2 * margin))
-                    hx = int(vp_x + (bx - vp_x) * ((horizon_y - vp_y) / (bottom_y - vp_y)))
-                    x0 = int(hx + (bx - hx) * ((y0 - horizon_y) / (bottom_y - horizon_y)))
-                    x1 = int(hx + (bx - hx) * ((y1 - horizon_y) / (bottom_y - horizon_y)))
+                z0, z1 = z_rows[r], z_rows[r + 1]
+                stagger = 0.5 if (r % 2 == 1) else 0.0
+                for j in range(-half_cols, half_cols + 1):
+                    world_x = (j + stagger) * tile_w_m
+                    x0 = int(round(vp_x + f_x * world_x / z0))
+                    x1 = int(round(vp_x + f_x * world_x / z1))
                     draw.line([(x0, y0), (x1, y1)], fill=line_color, width=2)
         elif pattern == "diagonal":
-            for j in range(-num_cols, num_cols * 2 + 1):
-                x_top = int((j / num_cols) * width)
-                draw.line([(x_top, horizon_y), (x_top - width // 2, bottom_y)], fill=line_color, width=2)
-                draw.line([(x_top, horizon_y), (x_top + width // 2, bottom_y)], fill=line_color, width=2)
+            step_m = max(tile_w_m, tile_d_m)
+            for j in range(-half_cols * 2, half_cols * 2 + 1):
+                x_top = vp_x + f_x * (j * step_m) / z_far
+                x_bot_l = vp_x + f_x * ((j - num_rows) * step_m) / z_near
+                x_bot_r = vp_x + f_x * ((j + num_rows) * step_m) / z_near
+                draw.line([(int(round(x_top)), y_far), (int(round(x_bot_l)), bottom_y)], fill=line_color, width=2)
+                draw.line([(int(round(x_top)), y_far), (int(round(x_bot_r)), bottom_y)], fill=line_color, width=2)
         else:
-            for j in range(-2, num_cols + 3):
-                bx = int(-margin + (j / num_cols) * (width + 2 * margin))
-                hx = int(vp_x + (bx - vp_x) * ((horizon_y - vp_y) / (bottom_y - vp_y)))
-                draw.line([(hx, horizon_y), (bx, bottom_y)], fill=line_color, width=2)
+            for j in range(-half_cols, half_cols + 1):
+                world_x = j * tile_w_m
+                x_near = int(round(vp_x + f_x * world_x / z_near))
+                x_far = int(round(vp_x + f_x * world_x / z_far))
+                draw.line([(x_far, y_far), (x_near, bottom_y)], fill=line_color, width=2)
     else:
-        row_ys = [int(r * (height / num_rows)) for r in range(num_rows + 1)]
+        # Exact mm-proportional wall grid on a 4200 x 3000 mm reference plane (7:5 = 840x600)
+        col_w = width * (eff_w / 4200.0)
+        row_h = height * (eff_h / 3000.0)
+        num_cols = max(2, int(math.ceil(width / col_w)))
+        num_rows = max(2, int(math.ceil(height / row_h)))
+
+        row_ys = [int(round(r * row_h)) for r in range(num_rows + 1)]
         for y in row_ys:
-            draw.line([(0, y), (width, y)], fill=line_color, width=2)
+            if 0 <= y <= height:
+                draw.line([(0, y), (width, y)], fill=line_color, width=2)
 
         if pattern == "brick":
-            col_w = width / num_cols
             for r in range(num_rows):
-                y0, y1 = row_ys[r], row_ys[r + 1]
+                y0, y1 = row_ys[r], min(height, row_ys[r + 1])
                 offset = col_w * 0.5 if (r % 2 == 1) else 0.0
                 for c in range(num_cols + 2):
-                    x = int(c * col_w - offset)
+                    x = int(round(c * col_w - offset))
                     if 0 <= x <= width:
                         draw.line([(x, y0), (x, y1)], fill=line_color, width=2)
         elif pattern == "diagonal":
-            for k in range(-num_cols, num_cols * 2 + 1):
-                x0 = int((k / num_cols) * width)
+            step = max(col_w, row_h)
+            n_diag = int(math.ceil(width / step)) + 4
+            for k in range(-n_diag, n_diag * 2 + 1):
+                x0 = int(round(k * step))
                 draw.line([(x0, 0), (x0 - height, height)], fill=line_color, width=2)
                 draw.line([(x0, 0), (x0 + height, height)], fill=line_color, width=2)
         else:
             for c in range(num_cols + 1):
-                x = int(c * (width / num_cols))
-                draw.line([(x, 0), (x, height)], fill=line_color, width=2)
+                x = int(round(c * col_w))
+                if 0 <= x <= width:
+                    draw.line([(x, 0), (x, height)], fill=line_color, width=2)
 
     return canvas
 

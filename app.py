@@ -122,18 +122,61 @@ def generate_interior_prompt(
     floor_pattern_rule = pattern_map.get(floor_pattern, pattern_map["grid"])
     wall_pattern_rule = pattern_map.get(wall_pattern, pattern_map["grid"])
 
+    # --- Helper: explicit rectangular proportion lock ---
+    def _build_proportion_lock(size_label: str, orientation: str, surface: str) -> str:
+        info = analyze_tile_size(size_label, orientation_mode=orientation)
+        if not info.get("valid"):
+            return ""
+        w_mm, h_mm = info["width_mm"], info["height_mm"]
+        if w_mm == h_mm:
+            return (
+                f"PROPORTION LOCK: Every {surface} tile is STRICTLY SQUARE (1:1, {w_mm}x{h_mm} mm) "
+                f"with equal width and height/depth."
+            )
+        short_mm, long_mm = min(w_mm, h_mm), max(w_mm, h_mm)
+        eff_w, eff_h = (short_mm, long_mm) if orientation == "vertical" else (long_mm, short_mm)
+        ratio_val = round(max(eff_w, eff_h) / max(1, min(eff_w, eff_h)), 2)
+        if surface == "floor":
+            if eff_w > eff_h:
+                return (
+                    f"PROPORTION LOCK (CRITICAL): Each floor tile is a {eff_w}x{eff_h} mm RECTANGLE — "
+                    f"its left-to-right width ({eff_w} mm) is {ratio_val:g}x its front-to-back depth ({eff_h} mm). "
+                    f"In perspective on the floor, every tile MUST appear as a wide, shallow horizontal rectangle "
+                    f"(NEVER square 1:1!). Space the horizontal front-to-back grout lines {ratio_val:g}x closer together "
+                    f"than a square tile so each floor tile clearly shows {eff_w}:{eff_h} rectangular proportions."
+                )
+            return (
+                f"PROPORTION LOCK (CRITICAL): Each floor tile is a {eff_w}x{eff_h} mm RECTANGLE — "
+                f"its front-to-back depth ({eff_h} mm) is {ratio_val:g}x its left-to-right width ({eff_w} mm). "
+                f"In perspective on the floor, every tile MUST appear as an elongated vertical plank/strip "
+                f"running into the room (NEVER square 1:1!)."
+            )
+        return (
+            f"PROPORTION & GRID LOCK (CRITICAL): Every single wall tile MUST have the exact same "
+            f"{eff_w} mm width x {eff_h} mm height ({info['aspect_ratio_label']} rectangular). "
+            f"Never merge two rows into a tall square tile and never vary tile height or width across columns."
+        )
+
+    floor_prop_lock = _build_proportion_lock(floor_size_lable, floor_orientation, "floor") if floor_tile_image else ""
+    wall_prop_lock = _build_proportion_lock(wall_size_lable, wall_orientation, "wall") if (wall_tile_image_1 or wall_tile_image_2 or wall_tile_image_3) else ""
+
     # --- Floor ---
-    if floor_tile_image and floor_finish:
+    has_floor = bool(floor_tile_image and floor_finish)
+    if has_floor:
         floor_instruction = (
             f"Replace the floor surface with the tile pattern from {floor_tile_image}. "
             f"Tile size: {floor_size_lable}. Finish: {floor_finish}. {floor_orient_rule} {floor_pattern_rule} "
+            f"{floor_prop_lock} "
             f"Render the floor tiles in true architectural perspective with crisp, evenly spaced grid joints matching {floor_size_lable} — "
             f"do NOT render oversized slabs or square tiles when {floor_size_lable} is rectangular. "
             f"Preserve the tile's original color and pattern exactly. "
             f"Do not place any rugs, mats, or carpets over the tiles."
         )
     else:
-        floor_instruction = "if tiles is present, keep as it is otherwise all walls plain and smooth."
+        floor_instruction = (
+            f"DO NOT apply any tiles to the floor. Keep the original floor from {main_image} "
+            f"100% unchanged, untouched, and identical in material, color, texture, pattern, and finish."
+        )
 
     # --- Walls (Left, Center, Right) ---
     wall_assignments = []
@@ -144,25 +187,36 @@ def generate_interior_prompt(
     if wall_tile_image_2:
         wall_assignments.append(f"Apply tiles from {wall_tile_image_2} to the right wall.")
 
-    if wall_assignments and wall_finish:
+    has_wall = bool(wall_assignments and wall_finish)
+    if has_wall:
         untiled_note = (
-            "Keep any remaining walls without an assigned tile plain, smooth, and painted in a complementary neutral tone."
+            "Keep any remaining walls without an assigned tile unchanged from the original room."
             if len(wall_assignments) < 3
             else ""
         )
         wall_instruction = (
             " ".join(wall_assignments)
             + f" All tiled walls use tile size {wall_size_lable} and {wall_finish} finish. {wall_orient_rule} {wall_pattern_rule} "
+            + f"{wall_prop_lock} "
             + "Preserve each tile's original color and pattern exactly. "
             + untiled_note
         ).strip()
     else:
         wall_instruction = (
-            "if tiles is present, keep as it is otherwise all walls plain and smooth."
+            f"DO NOT apply any tiles to any wall. Keep all original walls from {main_image} "
+            f"100% unchanged, untouched, and identical in material, color, texture, and finish."
         )
 
     # --- Lighting rules per finish ---
-    finishes = set(filter(None, [floor_finish, wall_finish]))
+    active_finishes = set(
+        filter(
+            None,
+            [
+                floor_finish if has_floor else None,
+                wall_finish if has_wall else None,
+            ],
+        )
+    )
     rules_map = {
         "glossy": (
             "Glossy finish: add subtle, diffused reflections of nearby furniture, windows, and room lights on the tile surface, "
@@ -177,10 +231,10 @@ def generate_interior_prompt(
         ),
     }
     lighting_rules = "\n".join(
-        f"- {rules_map[f]}" for f in finishes if f in rules_map
+        f"- {rules_map[f]}" for f in active_finishes if f in rules_map
     )
 
-    has_floor_and_wall = bool(floor_tile_image and wall_assignments)
+    has_floor_and_wall = bool(has_floor and has_wall)
     grid_alignment_rule = (
         "\n- WALL-TO-FLOOR GROUT GRID ALIGNMENT (MANDATORY):\n"
         "  - Connect and align floor grout lines directly with the vertical wall grout joints at the wall-to-floor junction (no offset or staggered seams), forming one continuous architectural tile grid across the wall and floor.\n"
@@ -236,9 +290,36 @@ def generate_interior_prompt(
         )
     grid_ref_block = ("\n" + "\n".join(grid_ref_lines)) if grid_ref_lines else ""
 
+    grout_surface_lines = []
+    grout_width_parts = []
+    size_enforcement_lines = []
+    if has_floor:
+        grout_surface_lines.append(
+            f"- Floor grout: {floor_grout_width} wide lines for {floor_size_lable} tiles. {floor_grout_color_rule}"
+        )
+        grout_width_parts.append(f"{floor_grout_width} (floor)")
+        size_enforcement_lines.append(f"Floor tile size is {floor_size_lable}. {floor_count_check}")
+    if has_wall:
+        grout_surface_lines.append(
+            f"- Wall grout: {wall_grout_width} wide lines for {wall_size_lable} tiles. {wall_grout_color_rule}"
+        )
+        grout_width_parts.append(f"{wall_grout_width} (wall)")
+        size_enforcement_lines.append(f"Wall tile size is {wall_size_lable}. {wall_count_check}")
+
+    grout_surface_block = "\n".join(grout_surface_lines)
+    grout_width_desc = " and ".join(grout_width_parts) if grout_width_parts else "2 mm"
+    size_enforcement_block = "\n".join(size_enforcement_lines)
+
+    if has_floor and not has_wall:
+        surface_scope_rule = "ONLY replace the FLOOR surface with the provided floor tile. Do NOT modify, paint, or apply tiles to ANY wall."
+    elif has_wall and not has_floor:
+        surface_scope_rule = "ONLY replace the specified WALL surface(s) with the provided wall tile(s). Do NOT modify or apply tiles to the FLOOR."
+    else:
+        surface_scope_rule = "ONLY replace the specified floor and/or wall surfaces with the provided tiles."
+
     prompt = f"""
 STRICT IN-PLACE ROOM PRESERVATION (MANDATORY — DO NOT CHANGE THE ROOM):
-- Treat {main_image} as an immutable photograph. Perform an IN-PLACE TILE SURFACE REPLACEMENT ONLY on the specified floor and/or wall surfaces.
+- Treat {main_image} as an immutable photograph. Perform an IN-PLACE TILE SURFACE REPLACEMENT ONLY: {surface_scope_rule}
 - Preserve camera angle, perspective, framing, lighting, and field of view 100% identically to {main_image}.
 - Keep EVERY existing object in {main_image} completely untouched and unchanged: all furniture, chairs, tables, plants, windows, doors, curtains, ceiling, light fixtures, decor, background scenery, and shadows must remain in their exact original position, shape, and color.
 - Do NOT add, remove, move, replace, crop, rotate, or restyle any furniture, decor, ceiling, or architectural structure.
@@ -246,7 +327,7 @@ STRICT IN-PLACE ROOM PRESERVATION (MANDATORY — DO NOT CHANGE THE ROOM):
 - Do NOT change tile color or pattern from the provided tile reference images.
 
 SCENE:
-Keep the existing {scene} in {main_image} 100% unchanged — ONLY replace the specified floor and/or wall surfaces with the provided tiles.
+Keep the existing {scene} in {main_image} 100% unchanged — {surface_scope_rule}
 
 FLOOR:
 {floor_instruction}
@@ -260,25 +341,23 @@ CEILING & EXISTING FURNITURE (DO NOT MODIFY):
 
 GROUT (CRITICAL — MUST BE VISIBLE):
 Grout lines are a mandatory visible element — they must NOT be invisible, faint, blended into the tile, or omitted.
-- Floor grout: {floor_grout_width} wide lines for {floor_size_lable} tiles. {floor_grout_color_rule}
-- Wall grout: {wall_grout_width} wide lines for {wall_size_lable} tiles. {wall_grout_color_rule}
-- All grout lines must be perfectly straight, evenly spaced, and continuous across the entire surface without breaks or gaps.
+{grout_surface_block}
+- All grout lines must be perfectly straight, evenly spaced, and continuous across the entire tiled surface without breaks or gaps.
 - Grout channel must show slight physical depth — rendered as a recessed groove between tiles, not a flat painted line.
 - Grout must remain clearly visible under all lighting conditions, including glossy and high-glossy finishes.
 - Tile edges must be sharp and clean where they meet the grout channel.
 - Grout texture should appear slightly rough and matte — never smooth, shiny, or matching the tile finish.{grout_sync_rule}
 
 TILE SIZE ENFORCEMENT (CRITICAL — NON-NEGOTIABLE):
-Floor tile size is {floor_size_lable}. {floor_count_check}
-Wall tile size is {wall_size_lable}. {wall_count_check}{grid_ref_block}
-Before finalising the image, verify: count the tiles visible on any 1-meter span of floor or wall.
+{size_enforcement_block}{grid_ref_block}
+Before finalising the image, verify: count the tiles visible on any 1-meter span of the tiled surface(s).
 The count MUST match the stated tile density above. If it does not match, the tile size is rendered incorrectly — fix it.
 Do NOT make tiles larger or smaller than declared. Do NOT guess the scale.
 
 LIGHTING & MATERIAL FINISH:
 Adjust lighting, reflections, shadows, and surface rendering strictly according to the specified tile finishes:
 {lighting_rules}
-- SHADOWS & AMBIENT OCCLUSION (MANDATORY): Cast realistic contact shadows and soft ambient occlusion directly beneath all existing furniture legs, sofas, tables, planters, decor objects, and wall-floor corners onto the newly laid tiles, matching the exact light direction of {main_image} so objects look physically grounded on the tile surface.
+- SHADOWS & AMBIENT OCCLUSION (MANDATORY): Cast realistic contact shadows and soft ambient occlusion directly beneath all existing furniture legs, sofas, tables, planters, decor objects, and wall-floor corners onto the newly laid surface, matching the exact light direction of {main_image} so objects look physically grounded.
 Overall scene lighting must be natural, well-balanced, and consistent — no harsh overexposure or underlit areas.
 
 QUALITY:
@@ -289,10 +368,10 @@ TILE & GROUT LOCK (ABSOLUTE — NO MODIFICATION ALLOWED):
 - The tile color, texture, finish, and pattern must remain EXACTLY identical to the provided tile reference images.
 - Do NOT enhance, restyle, recolor, retexture, or reinterpret the tiles in any way.
 - Do NOT apply filters, lighting effects, or reflections that alter the perceived tile color or design.
-- Tiles must be reproduced 1:1 as real-world material surfaces, not artistically interpreted.
+- Tiles must be reproduced faithfully as real-world material surfaces, not artistically interpreted.
 
 - Grout lines must remain EXACTLY as specified:
-  - Width must be strictly {floor_grout_width} (floor) and {wall_grout_width} (wall) — no variation anywhere.
+  - Width must be strictly {grout_width_desc} — no variation anywhere.
   - Grout must be fully visible across the entire tiled surface, with no fading, blending, or obstruction.
   - Do NOT reduce grout visibility due to lighting, reflections, or post-processing.
   - Grout must appear as a continuous recessed channel with consistent depth and sharp tile edges.
