@@ -78,3 +78,13 @@ AiPhotoGenerated/
   - `aspect_ratio` (string, optional, default `"4:3"`): `"4:3"`, `"16:9"`, `"1:1"`, or `"3:4"`.
   - `floor_grout_color` / `wall_grout_color` (string, optional): Explicit grout color name/hex, or omitted for auto-contrast.
   - `sync_grout` (string/boolean, optional, default `"false"`): When `"true"`, unifies floor & wall grout color and aligns floor grout lines directly with wall grout joints.
+
+---
+
+## Copyright
+
+&copy; 2026 **Dhruv Gangani**. All rights reserved.  
+**Powered by Dhruv Gangani**
+
+> Do not remove or alter this copyright and attribution notice.
+

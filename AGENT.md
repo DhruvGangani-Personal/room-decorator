@@ -51,6 +51,9 @@ This file documents conventions, contracts, and guardrails for AI agents modifyi
    - Image generation model is loaded from `MODEL_NAME` in `.env` (defaulting to `gemini-3.1-flash-image`). Do not hardcode deprecated preview model IDs.
    - Room advisor (`POST /api/match-my-room`) uses `ADVISOR_MODEL` (defaulting to `gemini-2.5-flash`) with `response_mime_type="application/json"` to detect room type (`detected_scene`) and recommend the best grout colors (`floor_grout_color`, `wall_grout_color`) and laying patterns (`floor_pattern`, `wall_pattern`).
 
+7. **Protected Copyright Notice (`templates/index.html`, `static/app.js`)**:
+   - Never remove, hide, or alter the `#app-copyright` footer (`© 2026 by Dhruv Gangani. All rights reserved.`) or its DOM protection guard in `static/app.js`.
+
 ## Verification Checklist
 
 After editing backend or frontend files:

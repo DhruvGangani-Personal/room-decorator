@@ -885,4 +885,38 @@
   }
 
   loadSavedRenders();
+
+  // Protected Copyright Guard — ensures attribution remains intact
+  (function enforceCopyrightFooter() {
+    const COPYRIGHT_TEXT = '© 2026 by Dhruv Gangani. All rights reserved.';
+    const ensureFooter = () => {
+      const shell = document.querySelector('.app-shell');
+      if (!shell) return;
+      let footer = document.getElementById('app-copyright');
+      if (!footer) {
+        footer = document.createElement('footer');
+        footer.className = 'app-footer';
+        footer.id = 'app-copyright';
+        footer.dataset.protected = 'true';
+        footer.textContent = COPYRIGHT_TEXT;
+        shell.appendChild(footer);
+      } else if (
+        footer.textContent.trim() !== COPYRIGHT_TEXT ||
+        footer.hidden ||
+        getComputedStyle(footer).display === 'none'
+      ) {
+        footer.hidden = false;
+        footer.style.display = '';
+        footer.textContent = COPYRIGHT_TEXT;
+      }
+    };
+    ensureFooter();
+    const observer = new MutationObserver(ensureFooter);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      characterData: true,
+      attributes: true,
+    });
+  })();
 })();

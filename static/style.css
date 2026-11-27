@@ -43,6 +43,19 @@ body {
   min-height: 100vh;
 }
 
+/* Protected Copyright Footer */
+.app-footer {
+  padding: 8px 24px;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  user-select: none;
+  flex-shrink: 0;
+}
+
 /* Header */
 .topbar {
   display: flex;
