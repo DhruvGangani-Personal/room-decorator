@@ -131,9 +131,15 @@ def generate_interior_prompt(
             return ""
         w_mm, h_mm = info["width_mm"], info["height_mm"]
         if w_mm == h_mm:
+            if surface == "wall":
+                return (
+                    f"PROPORTION & GRID LOCK (CRITICAL): Every single wall tile MUST be STRICTLY SQUARE (1:1, {w_mm} mm wide x {h_mm} mm tall) "
+                    f"with EQUAL width and height — NEVER rectangular, NEVER vertically stretched, and NEVER horizontally elongated. "
+                    f"Keep ALL horizontal grout rows at the EXACT SAME uniform height from ceiling to floor (do NOT stretch or shrink rows to align with mirrors, shelves, or countertops — grout lines must pass straight behind fixtures at equal {h_mm} mm intervals)."
+                )
             return (
-                f"PROPORTION LOCK: Every {surface} tile is STRICTLY SQUARE (1:1, {w_mm}x{h_mm} mm) "
-                f"with equal width and height/depth."
+                f"PROPORTION LOCK (CRITICAL): Every {surface} tile MUST be STRICTLY SQUARE (1:1, {w_mm} mm x {h_mm} mm) "
+                f"with equal left-to-right width and front-to-back depth in 3D perspective — NEVER rectangular or stretched."
             )
         short_mm, long_mm = min(w_mm, h_mm), max(w_mm, h_mm)
         eff_w, eff_h = (short_mm, long_mm) if orientation == "vertical" else (long_mm, short_mm)
