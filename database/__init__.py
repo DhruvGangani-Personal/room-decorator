@@ -67,16 +67,28 @@ SEED_TILES = [
 ]
 
 
-def get_connection(db_path: Path = DB_PATH) -> sqlite3.Connection:
+def get_connection(db_path: Path = DB_PATH, ensure_schema: bool = True) -> sqlite3.Connection:
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    if ensure_schema and (not db_path.exists() or db_path.stat().st_size == 0):
+        init_db(db_path)
     conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
+    if ensure_schema:
+        has_renders = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='renders'"
+        ).fetchone()
+        if not has_renders:
+            conn.close()
+            init_db(db_path)
+            conn = sqlite3.connect(str(db_path))
+            conn.row_factory = sqlite3.Row
     return conn
 
 
 def init_db(db_path: Path = DB_PATH) -> None:
     """Create tables if missing and seed initial showroom catalog tiles."""
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    with get_connection(db_path) as conn:
+    with get_connection(db_path, ensure_schema=False) as conn:
         conn.executescript(
             """
             CREATE TABLE IF NOT EXISTS renders (
