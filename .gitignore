@@ -29,7 +29,7 @@ generated_images/*
 !generated_images/.gitkeep
 
 # Databases
-# *.db
+*.db
 *.sqlite
 *.sqlite3
 
