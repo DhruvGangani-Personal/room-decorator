@@ -357,6 +357,22 @@
               </div>
 
               <div class="field-group">
+                <label>Reflections &amp; Shadows</label>
+                <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:4px;">
+                  <label class="sync-toggle" title="Add realistic reflections of furniture, windows, and lights onto tiled surfaces">
+                    <input type="checkbox" id="enable_reflection" name="enable_reflection" />
+                    <span class="sync-track"></span>
+                    <span class="sync-text">Add Reflection</span>
+                  </label>
+                  <label class="sync-toggle" title="Cast realistic contact shadows and ambient occlusion under furniture and objects">
+                    <input type="checkbox" id="enable_shadows" name="enable_shadows" checked />
+                    <span class="sync-track"></span>
+                    <span class="sync-text">Add Shadows</span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="field-group">
                 <label>Output Aspect Ratio</label>
                 <div class="segmented-control" data-name="aspect_ratio">
                   <button type="button" class="seg-btn active" data-value="4:3">4:3</button>

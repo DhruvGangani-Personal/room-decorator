@@ -667,6 +667,12 @@
       formData.append('sync_grout', 'true');
     }
 
+    const enableReflection = document.getElementById('enable_reflection');
+    formData.append('enable_reflection', enableReflection && enableReflection.checked ? 'true' : 'false');
+
+    const enableShadows = document.getElementById('enable_shadows');
+    formData.append('enable_shadows', enableShadows && enableShadows.checked ? 'true' : 'false');
+
     const beforeSnapshotUrl = mainPreviewUrl;
     setLoading(true);
     canvasMeta.textContent = `Rendering ${sceneVal}…`;
@@ -734,6 +740,10 @@
     setGroutSelection('wall', '', 'Auto (contrasting grout)', 'auto', null, true);
     const syncGrout = document.getElementById('sync_grout');
     if (syncGrout) syncGrout.checked = false;
+    const enableReflection = document.getElementById('enable_reflection');
+    if (enableReflection) enableReflection.checked = false;
+    const enableShadows = document.getElementById('enable_shadows');
+    if (enableShadows) enableShadows.checked = true;
     resetTileTone('floor');
     resetTileTone('wall');
     updateSizeAnalysis('floor', '600x1200 mm');

@@ -98,6 +98,8 @@ def generate_interior_prompt(
     wall_count_check: str = None,
     floor_grid_ref: str = None,
     wall_grid_ref: str = None,
+    enable_reflection: bool = False,
+    enable_shadows: bool = True,
 ):
     """Generate interior design prompt based on provided parameters"""
 
@@ -323,6 +325,17 @@ def generate_interior_prompt(
     else:
         surface_scope_rule = "ONLY replace the specified floor and/or wall surfaces with the provided tiles."
 
+    reflection_rule = (
+        f"- REFLECTION (ENABLED — MANDATORY): Add realistic, perspective-accurate reflections of nearby furniture, windows, doors, plants, and room light sources onto the newly tiled surface(s) (softly diffused on matt, clear and luminous on glossy/high glossy), matching the lighting of {main_image}."
+        if enable_reflection
+        else "- REFLECTION (DISABLED): Do NOT add mirror reflections or bright glare onto the newly tiled surface(s); keep the tile surface clean and non-reflective so the tile pattern remains pure."
+    )
+    shadow_rule = (
+        f"- SHADOWS & AMBIENT OCCLUSION (ENABLED — MANDATORY): Cast realistic contact shadows and soft ambient occlusion directly beneath all existing furniture legs, sofas, tables, bathtubs, planters, decor objects, and wall-floor corners onto the newly laid surface, matching the exact light direction of {main_image} so objects look physically grounded."
+        if enable_shadows
+        else "- SHADOWS (DISABLED): Do NOT add extra cast shadows or dark ambient occlusion onto the newly laid tile surface(s); keep lighting even and clean across the tiles."
+    )
+
     prompt = f"""
 STRICT IN-PLACE ROOM PRESERVATION (MANDATORY — DO NOT CHANGE THE ROOM):
 - Treat {main_image} as an immutable photograph. Perform an IN-PLACE TILE SURFACE REPLACEMENT ONLY: {surface_scope_rule}
@@ -361,9 +374,10 @@ The count MUST match the stated tile density above. If it does not match, the ti
 Do NOT make tiles larger or smaller than declared. Do NOT guess the scale.
 
 LIGHTING & MATERIAL FINISH:
-Adjust lighting, reflections, shadows, and surface rendering strictly according to the specified tile finishes:
+Adjust lighting, reflections, shadows, and surface rendering strictly according to the specified tile finishes and toggles:
 {lighting_rules}
-- SHADOWS & AMBIENT OCCLUSION (MANDATORY): Cast realistic contact shadows and soft ambient occlusion directly beneath all existing furniture legs, sofas, tables, planters, decor objects, and wall-floor corners onto the newly laid surface, matching the exact light direction of {main_image} so objects look physically grounded.
+{reflection_rule}
+{shadow_rule}
 Overall scene lighting must be natural, well-balanced, and consistent — no harsh overexposure or underlit areas.
 
 QUALITY:
@@ -632,6 +646,8 @@ def generate_prompt():
         if aspect_ratio not in ('4:3', '16:9', '1:1', '3:4'):
             aspect_ratio = '4:3'
         sync_grout = request.form.get('sync_grout', 'false').lower() in ('true', '1', 'yes', 'on')
+        enable_reflection = request.form.get('enable_reflection', 'false').lower() in ('true', '1', 'yes', 'on')
+        enable_shadows = request.form.get('enable_shadows', 'true').lower() in ('true', '1', 'yes', 'on')
         scene = request.form.get('scene', 'living room')
 
         effective_floor_grout = (floor_grout_color or wall_grout_color) if sync_grout else floor_grout_color
@@ -711,6 +727,8 @@ def generate_prompt():
                 "wall_grout_color": wall_grout_color,
                 "aspect_ratio": aspect_ratio,
                 "sync_grout": sync_grout,
+                "enable_reflection": enable_reflection,
+                "enable_shadows": enable_shadows,
             },
         }
         print("=== /generate-prompt PAYLOAD ===", payload_debug, flush=True)
@@ -760,6 +778,8 @@ def generate_prompt():
             wall_count_check=wall_size_info['count_check'],
             floor_grid_ref=floor_grid_ref,
             wall_grid_ref=wall_grid_ref,
+            enable_reflection=enable_reflection,
+            enable_shadows=enable_shadows,
             scene=scene
         )
 
@@ -791,6 +811,8 @@ def generate_prompt():
             "wall_grout_color": wall_grout_color,
             "aspect_ratio": aspect_ratio,
             "sync_grout": sync_grout,
+            "enable_reflection": enable_reflection,
+            "enable_shadows": enable_shadows,
         })
                 
         # Return response

@@ -110,7 +110,9 @@ def init_db(db_path: Path = DB_PATH) -> None:
                 wall_grout_width TEXT,
                 wall_grout_color TEXT,
                 aspect_ratio TEXT,
-                sync_grout INTEGER DEFAULT 0
+                sync_grout INTEGER DEFAULT 0,
+                enable_reflection INTEGER DEFAULT 0,
+                enable_shadows INTEGER DEFAULT 1
             );
 
             CREATE TABLE IF NOT EXISTS room_analyses (
@@ -138,6 +140,15 @@ def init_db(db_path: Path = DB_PATH) -> None:
             );
             """
         )
+
+        # Safe schema migration for existing databases
+        existing_cols = {
+            row[1] for row in conn.execute("PRAGMA table_info(renders)").fetchall()
+        }
+        if "enable_reflection" not in existing_cols:
+            conn.execute("ALTER TABLE renders ADD COLUMN enable_reflection INTEGER DEFAULT 0")
+        if "enable_shadows" not in existing_cols:
+            conn.execute("ALTER TABLE renders ADD COLUMN enable_shadows INTEGER DEFAULT 1")
 
         count = conn.execute("SELECT COUNT(*) FROM tiles").fetchone()[0]
         if count == 0:
@@ -173,8 +184,8 @@ def save_render(record: Dict[str, Any], db_path: Path = DB_PATH) -> int:
                 created_at, scene, output_filename, output_image_path,
                 floor_size, floor_finish, floor_orientation, floor_pattern, floor_grout_width, floor_grout_color,
                 wall_size, wall_finish, wall_orientation, wall_pattern, wall_grout_width, wall_grout_color,
-                aspect_ratio, sync_grout
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                aspect_ratio, sync_grout, enable_reflection, enable_shadows
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 datetime.utcnow().isoformat(),
@@ -195,6 +206,8 @@ def save_render(record: Dict[str, Any], db_path: Path = DB_PATH) -> int:
                 record.get("wall_grout_color"),
                 record.get("aspect_ratio"),
                 1 if record.get("sync_grout") else 0,
+                1 if record.get("enable_reflection") else 0,
+                1 if record.get("enable_shadows", True) else 0,
             ),
         )
         return cur.lastrowid
