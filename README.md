@@ -38,6 +38,7 @@ AiPhotoGenerated/
    ```env
    GOOGLE_CLOUD_API_KEY=your_vertex_ai_api_key
    MODEL_NAME=gemini-3.1-flash-image
+   ADVISOR_MODEL=gemini-3.1-flash-image
    ```
 
 2. **Install dependencies** (if not using the existing `venv`):
@@ -87,4 +88,3 @@ AiPhotoGenerated/
 **Powered by Dhruv Gangani**
 
 > Do not remove or alter this copyright and attribution notice.
-
