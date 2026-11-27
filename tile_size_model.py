@@ -390,29 +390,40 @@ def build_tiled_swatch_sheet(
                 y = grout_px + r * (cell_h + grout_px)
                 sheet.paste(fitted_tile, (x, y))
     elif pattern == "diagonal":
-        big = Image.new("RGB", (canvas_w * 2, canvas_h * 2), grout_rgb)
-        for r in range(rows * 3):
-            for c in range(cols * 3):
-                x = grout_px + c * (cell_w + grout_px)
-                y = grout_px + r * (cell_h + grout_px)
-                if x < big.width and y < big.height:
+        big_w, big_h = canvas_w * 3, canvas_h * 3
+        big = Image.new("RGB", (big_w, big_h), grout_rgb)
+        step_x = cell_w + grout_px
+        step_y = cell_h + grout_px
+        for r in range(big_h // step_y + 2):
+            for c in range(big_w // step_x + 2):
+                x = grout_px + c * step_x
+                y = grout_px + r * step_y
+                if x < big_w and y < big_h:
                     big.paste(fitted_tile, (x, y))
         rotated = big.rotate(45, resample=Image.Resampling.BICUBIC)
         cx, cy = rotated.width // 2, rotated.height // 2
         sheet = rotated.crop((cx - canvas_w // 2, cy - canvas_h // 2, cx + canvas_w // 2, cy + canvas_h // 2))
     elif pattern == "herringbone":
-        # Interlocking 90-degree alternating plank blocks
-        tile_rot = fitted_tile.rotate(90, expand=True)
-        step = max(32, min(cell_w, cell_h))
-        for r in range(rows * 2):
-            for c in range(cols * 2):
-                x = grout_px + c * (step + grout_px)
-                y = grout_px + r * (step + grout_px)
-                if x >= canvas_w or y >= canvas_h:
-                    continue
-                patch = fitted_tile if ((r + c) % 2 == 0) else tile_rot
-                patch_fit = ImageOps.fit(patch, (step, step), method=Image.Resampling.LANCZOS)
-                sheet.paste(patch_fit, (x, y))
+        # True 90-degree interlocking herringbone using exact (L, S) rectangular lattice
+        long_px = max(cell_w, cell_h)
+        short_px = min(cell_w, cell_h)
+        if long_px == short_px:
+            # Square tiles laid in 45-degree herringbone/diamond weave
+            long_px = short_px * 2
+        tile_h_img = ImageOps.fit(tile_rgb, (long_px, short_px), method=Image.Resampling.LANCZOS)
+        tile_v_img = tile_h_img.rotate(90, expand=True)
+        step_l = long_px + grout_px
+        step_s = short_px + grout_px
+        n_range = max(cols, rows) * 3 + 4
+        for q in range(-n_range, n_range + 1):
+            for p in range(-n_range, n_range + 1):
+                px = p * step_s + q * (step_l + step_s)
+                py = p * step_s + q * (step_s - step_l)
+                if -step_l <= px <= canvas_w and -step_l <= py <= canvas_h:
+                    sheet.paste(tile_h_img, (px, py))
+                vx, vy = px, py + step_s
+                if -step_l <= vx <= canvas_w and -step_l <= vy <= canvas_h:
+                    sheet.paste(tile_v_img, (vx, vy))
     elif pattern == "bookmatch":
         # 4-way symmetrical mirroring so veins flow continuously across joints
         tile_h = ImageOps.mirror(fitted_tile)
@@ -494,11 +505,10 @@ def generate_grid_blueprint(
         z_far = z_rows[-1]
         y_far = row_ys[-1]
 
-        for y in row_ys:
-            draw.line([(0, y), (width, y)], fill=line_color, width=2)
-
         half_cols = num_cols + 4
         if pattern == "brick":
+            for y in row_ys:
+                draw.line([(0, y), (width, y)], fill=line_color, width=2)
             for r in range(num_rows):
                 y0, y1 = row_ys[r], row_ys[r + 1]
                 z0, z1 = z_rows[r], z_rows[r + 1]
@@ -509,14 +519,44 @@ def generate_grid_blueprint(
                     x1 = int(round(vp_x + f_x * world_x / z1))
                     draw.line([(x0, y0), (x1, y1)], fill=line_color, width=2)
         elif pattern == "diagonal":
+            # Pure 45-degree diamond grid in perspective (no horizontal lines)
             step_m = max(tile_w_m, tile_d_m)
+            depth_m = z_far - z_near
             for j in range(-half_cols * 2, half_cols * 2 + 1):
                 x_top = vp_x + f_x * (j * step_m) / z_far
-                x_bot_l = vp_x + f_x * ((j - num_rows) * step_m) / z_near
-                x_bot_r = vp_x + f_x * ((j + num_rows) * step_m) / z_near
+                x_bot_l = vp_x + f_x * (j * step_m - depth_m) / z_near
+                x_bot_r = vp_x + f_x * (j * step_m + depth_m) / z_near
                 draw.line([(int(round(x_top)), y_far), (int(round(x_bot_l)), bottom_y)], fill=line_color, width=2)
                 draw.line([(int(round(x_top)), y_far), (int(round(x_bot_r)), bottom_y)], fill=line_color, width=2)
+        elif pattern == "herringbone":
+            # True 90-degree interlocking herringbone projected into 1-point perspective
+            l_m = max(tile_w_m, tile_d_m)
+            s_m = min(tile_w_m, tile_d_m)
+            if l_m == s_m:
+                l_m = s_m * 2.0
+
+            def _proj(wx: float, wz: float) -> Tuple[int, int]:
+                wz_c = max(z_near * 0.85, wz)
+                return int(round(vp_x + f_x * wx / wz_c)), int(round(horizon_y + k_y / wz_c))
+
+            def _draw_rect_3d(x0: float, z0: float, rw: float, rd: float) -> None:
+                x1, z1 = x0 + rw, z0 + rd
+                if z1 <= z_near or z0 >= z_far:
+                    return
+                cz0, cz1 = max(z_near, z0), min(z_far, z1)
+                pts = [_proj(x0, cz0), _proj(x1, cz0), _proj(x1, cz1), _proj(x0, cz1)]
+                draw.polygon(pts, outline=line_color, width=2)
+
+            n_rng = 12
+            for q in range(-n_rng, n_rng + 1):
+                for p in range(-n_rng, n_rng + 1):
+                    wx = p * s_m + q * (l_m + s_m) - 2.5
+                    wz = z_near + (p * s_m + q * (s_m - l_m))
+                    _draw_rect_3d(wx, wz, l_m, s_m)
+                    _draw_rect_3d(wx, wz + s_m, s_m, l_m)
         else:
+            for y in row_ys:
+                draw.line([(0, y), (width, y)], fill=line_color, width=2)
             for j in range(-half_cols, half_cols + 1):
                 world_x = j * tile_w_m
                 x_near = int(round(vp_x + f_x * world_x / z_near))
@@ -530,11 +570,11 @@ def generate_grid_blueprint(
         num_rows = max(2, int(math.ceil(height / row_h)))
 
         row_ys = [int(round(r * row_h)) for r in range(num_rows + 1)]
-        for y in row_ys:
-            if 0 <= y <= height:
-                draw.line([(0, y), (width, y)], fill=line_color, width=2)
 
         if pattern == "brick":
+            for y in row_ys:
+                if 0 <= y <= height:
+                    draw.line([(0, y), (width, y)], fill=line_color, width=2)
             for r in range(num_rows):
                 y0, y1 = row_ys[r], min(height, row_ys[r + 1])
                 offset = col_w * 0.5 if (r % 2 == 1) else 0.0
@@ -543,13 +583,32 @@ def generate_grid_blueprint(
                     if 0 <= x <= width:
                         draw.line([(x, y0), (x, y1)], fill=line_color, width=2)
         elif pattern == "diagonal":
+            # Pure 45-degree diamond grid (no horizontal lines)
             step = max(col_w, row_h)
             n_diag = int(math.ceil(width / step)) + 4
             for k in range(-n_diag, n_diag * 2 + 1):
                 x0 = int(round(k * step))
                 draw.line([(x0, 0), (x0 - height, height)], fill=line_color, width=2)
                 draw.line([(x0, 0), (x0 + height, height)], fill=line_color, width=2)
+        elif pattern == "herringbone":
+            l_px = max(col_w, row_h)
+            s_px = min(col_w, row_h)
+            if abs(l_px - s_px) < 1.0:
+                l_px = s_px * 2.0
+            n_rng = int(math.ceil(max(width, height) / s_px)) + 4
+            for q in range(-n_rng, n_rng + 1):
+                for p in range(-n_rng, n_rng + 1):
+                    px = p * s_px + q * (l_px + s_px)
+                    py = p * s_px + q * (s_px - l_px)
+                    if -l_px <= px <= width and -l_px <= py <= height:
+                        draw.rectangle([px, py, px + l_px, py + s_px], outline=line_color, width=2)
+                    vx, vy = px, py + s_px
+                    if -l_px <= vx <= width and -l_px <= vy <= height:
+                        draw.rectangle([vx, vy, vx + s_px, vy + l_px], outline=line_color, width=2)
         else:
+            for y in row_ys:
+                if 0 <= y <= height:
+                    draw.line([(0, y), (width, y)], fill=line_color, width=2)
             for c in range(num_cols + 1):
                 x = int(round(c * col_w))
                 if 0 <= x <= width:

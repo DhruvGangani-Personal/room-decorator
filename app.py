@@ -235,11 +235,17 @@ def generate_interior_prompt(
     )
 
     has_floor_and_wall = bool(has_floor and has_wall)
+    aligned_patterns = {"grid", "bookmatch"}
+    can_align_grid = (
+        has_floor_and_wall
+        and floor_pattern in aligned_patterns
+        and wall_pattern in aligned_patterns
+    )
     grid_alignment_rule = (
         "\n- WALL-TO-FLOOR GROUT GRID ALIGNMENT (MANDATORY):\n"
         "  - Connect and align floor grout lines directly with the vertical wall grout joints at the wall-to-floor junction (no offset or staggered seams), forming one continuous architectural tile grid across the wall and floor.\n"
         "  - Keep the grid lines razor-sharp, straight, and evenly spaced across every tile row and column — never resize or distort the declared tile dimensions."
-        if has_floor_and_wall
+        if can_align_grid
         else ""
     )
 
