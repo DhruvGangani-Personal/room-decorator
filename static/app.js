@@ -194,8 +194,8 @@
       group.querySelectorAll('.chip').forEach((c) => c.classList.remove('active'));
       chip.classList.add('active');
       targetInput.value = chip.dataset.value;
-      if (targetId === 'floor_size_lable') { updateSizeAnalysis('floor', targetInput.value); updateCalculator(); }
-      if (targetId === 'wall_size_lable') { updateSizeAnalysis('wall', targetInput.value); updateCalculator(); }
+      if (targetId === 'floor_size_lable') { updateSizeAnalysis('floor', targetInput.value); }
+      if (targetId === 'wall_size_lable') { updateSizeAnalysis('wall', targetInput.value); }
     });
 
     targetInput.addEventListener('input', () => {
@@ -203,8 +203,8 @@
       group.querySelectorAll('.chip').forEach((c) => {
         c.classList.toggle('active', c.dataset.value.toLowerCase() === val);
       });
-      if (targetId === 'floor_size_lable') { updateSizeAnalysis('floor', targetInput.value); updateCalculator(); }
-      if (targetId === 'wall_size_lable') { updateSizeAnalysis('wall', targetInput.value); updateCalculator(); }
+      if (targetId === 'floor_size_lable') { updateSizeAnalysis('floor', targetInput.value); }
+      if (targetId === 'wall_size_lable') { updateSizeAnalysis('wall', targetInput.value); }
     });
   });
 
@@ -748,7 +748,6 @@
     resetTileTone('wall');
     updateSizeAnalysis('floor', '600x1200 mm');
     updateSizeAnalysis('wall', '600x1200 mm');
-    updateCalculator();
 
     // Clear right-side rendered result, comparison views, and session history
     sessionHistory.forEach((item) => {
@@ -774,61 +773,7 @@
     currentView = 'result';
   });
 
-  // 11. Tile Area & Box Calculator
-  let calcUnit = 'ft';
-  const calcSurface = document.getElementById('calc-surface');
-  const calcLen = document.getElementById('calc-len');
-  const calcWid = document.getElementById('calc-wid');
-  const calcBox = document.getElementById('calc-box');
-  const calcResults = document.getElementById('calc-results');
-
-  function parseMmPair(str) {
-    const m = (str || '').match(/(\d+)\s*[xX×]\s*(\d+)/);
-    return m ? [parseInt(m[1], 10), parseInt(m[2], 10)] : [600, 1200];
-  }
-
-  function updateCalculator() {
-    if (!calcResults) return;
-    const len = parseFloat(calcLen.value) || 0;
-    const wid = parseFloat(calcWid.value) || 0;
-    const perBox = Math.max(1, parseInt(calcBox.value, 10) || 1);
-    const areaSqM = calcUnit === 'ft' ? len * wid * 0.092903 : len * wid;
-    const sizeStr =
-      calcSurface.value === 'wall'
-        ? document.getElementById('wall_size_lable').value
-        : document.getElementById('floor_size_lable').value;
-    const [wMm, hMm] = parseMmPair(sizeStr);
-    const tileAreaSqM = (wMm / 1000) * (hMm / 1000);
-    const exactTiles = tileAreaSqM > 0 ? Math.ceil(areaSqM / tileAreaSqM) : 0;
-    const withWastage = Math.ceil(exactTiles * 1.1);
-    const boxes = Math.ceil(withWastage / perBox);
-
-    calcResults.innerHTML = `
-      <div class="calc-stat"><strong>${areaSqM.toFixed(1)} m²</strong><span>Area</span></div>
-      <div class="calc-stat"><strong>${withWastage}</strong><span>Tiles (+10%)</span></div>
-      <div class="calc-stat"><strong>${boxes}</strong><span>Boxes</span></div>
-    `;
-  }
-
-  document.querySelectorAll('.calc-unit').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      calcUnit = btn.dataset.unit;
-      document.querySelectorAll('.calc-unit').forEach((b) => b.classList.toggle('active', b === btn));
-      document.querySelectorAll('.unit-lbl').forEach((el) => (el.textContent = calcUnit));
-      updateCalculator();
-    });
-  });
-
-  [calcSurface, calcLen, calcWid, calcBox].forEach((el) => {
-    if (el) el.addEventListener('input', updateCalculator);
-  });
-  ['floor_size_lable', 'wall_size_lable'].forEach((id) => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('input', updateCalculator);
-  });
-  updateCalculator();
-
-  // 12. AI Tile & Palette Advisor ("Match My Room")
+  // 11. AI Tile & Palette Advisor ("Match My Room")
   const btnMatchRoom = document.getElementById('btn-match-room');
   const btnMatchLabel = document.getElementById('btn-match-label');
   const advisorResults = document.getElementById('advisor-results');
